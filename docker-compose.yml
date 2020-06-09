@@ -1,0 +1,10 @@
+version: "2.3"
+services:
+  main:
+    build:
+      context: ./
+    volumes:
+      - ${HOME}/src/pipe-det:/home/appuser/src/pipe-det
+      - ${HOME}/data:/home/appuser/data
+    stdin_open: true
+    tty: true
