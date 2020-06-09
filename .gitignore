@@ -1,182 +1,187 @@
 # [PyCharm]
-.idea/**
-.idea/*
-*/.idea/**
-*/.idea/*
+# .idea/**
+# .idea/*
+# */.idea/**
+# */.idea/*
 
 # User-specific stuff:
-.idea/**/workspace.xml
-.idea/**/tasks.xml
-.idea/dictionaries
+# .idea/**/workspace.xml
+# .idea/**/tasks.xml
+# .idea/dictionaries
 
 # Sensitive or high-churn files:
-.idea/**/dataSources/
-.idea/**/dataSources.ids
-.idea/**/dataSources.xml
-.idea/**/dataSources.local.xml
-.idea/**/sqlDataSources.xml
-.idea/**/dynamic.xml
-.idea/**/uiDesigner.xml
+# .idea/**/dataSources/
+# .idea/**/dataSources.ids
+# .idea/**/dataSources.xml
+# .idea/**/dataSources.local.xml
+# .idea/**/sqlDataSources.xml
+# .idea/**/dynamic.xml
+# .idea/**/uiDesigner.xml
 
 # Gradle:
-.idea/**/gradle.xml
-.idea/**/libraries
+# .idea/**/gradle.xml
+# .idea/**/libraries
 
 # CMake
-cmake-build-debug/
+# cmake-build-debug/
 
 # Mongo Explorer plugin:
-.idea/**/mongoSettings.xml
+# .idea/**/mongoSettings.xml
 
 ## File-based project format:
-*.iws
+# *.iws
 
 ## Plugin-specific files:
 
 # IntelliJ
-out/
+# out/
 
 # mpeltonen/sbt-idea plugin
-.idea_modules/
+# .idea_modules/
 
 # JIRA plugin
-atlassian-ide-plugin.xml
+# atlassian-ide-plugin.xml
 
 # Cursive Clojure plugin
-.idea/replstate.xml
+# .idea/replstate.xml
 
 # Crashlytics plugin (for Android Studio and IntelliJ)
-com_crashlytics_export_strings.xml
-crashlytics.properties
-crashlytics-build.properties
-fabric.properties
+# com_crashlytics_export_strings.xml
+# crashlytics.properties
+# crashlytics-build.properties
+# fabric.properties
 
 # [Python]
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# __pycache__/
+# *.py[cod]
+# *$py.class
 
 # C extensions
-*.so
+# *.so
 
 # Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# .Python
+# build/
+# develop-eggs/
+# dist/
+# downloads/
+# eggs/
+# .eggs/
+# lib/
+# lib64/
+# parts/
+# sdist/
+# var/
+# wheels/
+# *.egg-info/
+# .installed.cfg
+# *.egg
+# MANIFEST
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# *.manifest
+# *.spec
 
 # Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# pip-log.txt
+# pip-delete-this-directory.txt
 
 # Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
+# htmlcov/
+# .tox/
+# .coverage
+# .coverage.*
+# .cache
+# nosetests.xml
+# coverage.xml
+# *.cover
+# .hypothesis/
 
 # Translations
-*.mo
-*.pot
+# *.mo
+# *.pot
 
 # Django stuff:
-*.log
-.static_storage/
-.media/
-local_settings.py
+# *.log
+# .static_storage/
+# .media/
+# local_settings.py
 
 # Flask stuff:
-instance/
-.webassets-cache
+# instance/
+# .webassets-cache
 
 # Scrapy stuff:
-.scrapy
+# .scrapy
 
 # Sphinx documentation
-docs/_build/
+# docs/_build/
 
 # PyBuilder
-target/
+# target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# .python-version
 
 # celery beat schedule file
-celerybeat-schedule
+# celerybeat-schedule
 
 # SageMath parsed files
-*.sage.py
+# *.sage.py
 
 # Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# .env
+# .venv
+# env/
+# venv/
+# ENV/
+# env.bak/
+# venv.bak/
 
 # Spyder project settings
-.spyderproject
-.spyproject
+# .spyderproject
+# .spyproject
 
 # Rope project settings
-.ropeproject
+# .ropeproject
 
 # mkdocs documentation
-/site
+# /site
 
 # mypy
 .mypy_cache/
 
 # custom
 
-*.jpg
-*.png
-*.ods
-*.txt
-*.npy
-*.mp4
-*.xml
-*.csv
-*.MP4
-*.lvix
-*.pdf
-!project_illustration.jpg
+# *.jpg
+# *.png
+# *.ods
+# *.txt
+# *.npy
+# *.mp4
+# *.xml
+# *.csv
+# *.MP4
+# *.lvix
+# *.pdf
+# !project_illustration.jpg
 
-!warmup_image1.jpg
-!warmup_image2.jpg
-!warmup_image3.jpg
-!warmup_image4.jpg
-!warmup_image5.jpg
+# !warmup_image1.jpg
+# !warmup_image2.jpg
+# !warmup_image3.jpg
+# !warmup_image4.jpg
+# !warmup_image5.jpg
 
-*.pkl
+# *.pkl
+
+/_side_projects/annotation_conversion/annotated examples/
+/_side_projects/hog_tests/haarcascades/
+
+tmux-client-*.log
