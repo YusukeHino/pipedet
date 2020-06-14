@@ -7,14 +7,14 @@ USER appuser
 WORKDIR /home/appuser
 
 ENV PATH="/home/appuser/.local/bin:${PATH}"
-ENV PATH="/home/appuser/.local/bin:${PATH}"
 RUN wget https://bootstrap.pypa.io/get-pip.py && \
 	python3 get-pip.py --user && \
 	rm get-pip.py
 
-# COPY requirements.txt ./
 RUN pip install --user --upgrade pip
-RUN pip install --user numpy matplotlib
-# RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --user numpy matplotlib pillow pandas
+RUN pip install --user opencv-python
+RUN pip install --user hydra-core --upgrade
+RUN pip install --user omegaconf
 
 CMD ["/bin/bash"]
