@@ -67,15 +67,20 @@ class Image():
     def show_image_drawn(self):
         cv2.imshow("image_drwan", self.image_drawn)
         cv2.waitKey()
-        cv2.destroyAllWindows()  
+        cv2.destroyAllWindows()
+        
     
 class LargeImage(Image):
     def __init__(self, image: np.ndarray, bboxes: List[List[int]]):
         super().__init__(image, bboxes)
+    
+    def crop_comprehensively(self, desired_width: int, desired_height: int) -> List[Image]:
+        
+        return
         
     def make_dataset(self, desired_width: int, desired_height: int) -> List[Image]:
         """
-        convert from 4K image w/ bboxes to desired size images w/ bboxes
+        convert from 4K image w/ bboxes to desired size images w/ bboxes randomly
         """
         dataset = []
         for bbox in self.bboxes:
