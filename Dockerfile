@@ -12,9 +12,10 @@ RUN wget https://bootstrap.pypa.io/get-pip.py && \
 	rm get-pip.py
 
 RUN pip install --user --upgrade pip
-RUN pip install --user numpy matplotlib pillow pandas
+RUN pip install --user numpy matplotlib pillow pandas requests
 RUN pip install --user opencv-python
 RUN pip install --user hydra-core --upgrade
 RUN pip install --user omegaconf
+RUN pip install --user mypy
 
 CMD ["/bin/bash"]

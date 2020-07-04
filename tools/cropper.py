@@ -1,4 +1,5 @@
 
+import os
 from typing import List, Tuple, Optional
 import random
 
@@ -35,18 +36,31 @@ class Image():
     """
     image (np.ndarray): an image of shape (H, W, C) (in BGR order).
         This is the format used by OpenCV.
-
     bbox: x1 y1 x2 y2
+    rel_path: ex) "for_rsm_detection/separated/5472_3672_for_train/capture_121.jpg"
     """
-    def __init__(self, image: np.ndarray, bboxes: Optional[List[List[int]]] = None):
+    def __init__(
+        self,
+        image: np.ndarray,
+        bboxes: Optional[List[List[int]]]=None,
+        rel_path: Optional[str]=None
+        ) -> None:
+
         self.image = image
         self.bboxes = bboxes
+        self.rel_path = rel_path
         if not self.bboxes:
             for bbox in self.bboxes:
                 assert bbox[0] >= 0 and bbox[0] < self.width-1, "x1 of bbox is out of image width"
                 assert bbox[2] >= 1 and bbox[2] < self.width, "x2 of bbox is out of image width"
                 assert bbox[1] >= 0 and bbox[1] < self.height-1, "y1 of bbox is out of image width"
                 assert bbox[3] >= 1 and bbox[3] < self.height, "y2 of bbox is out of image width"
+
+    @property
+    def filename(self) -> str:
+        if self.rel_path is None:
+            raise AttributeError
+        return os.path.basename(self.rel_path)
 
     @property
     def width(self) -> int:

@@ -10,7 +10,6 @@ from typing import List, Tuple
 NEED to change TARGET variable to execute.
 """
 
-
 def labelimg_to_cvat(list_tag_image: List[ET.Element], input_dir: str, rel_path: str, image_id: int) -> Tuple[List[ET.Element], int]:
     """
     """    
