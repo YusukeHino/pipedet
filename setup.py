@@ -11,6 +11,6 @@ setup(
     author_email='a',
     url='a',
 
-    packages=find_packages(where='pipedet'),
-    package_dir={'': 'pipedet'},
+    packages=find_packages(),
+    package_dir={'pipedet': './pipedet'},
 )
