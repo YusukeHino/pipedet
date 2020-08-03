@@ -1,10 +1,13 @@
 README.md
 setup.py
 ./pipedet/__init__.py
+./pipedet/automl/__init__.py
+./pipedet/automl/automl.py
 ./pipedet/data/__init__.py
 ./pipedet/data/data_loader_from_cvat_format.py
 ./pipedet/structure/__init__.py
-./pipedet/structure/cropper.py
+./pipedet/structure/image_encoder.py
+./pipedet/structure/large_image.py
 _side_projects/__init__.py
 _side_projects/faster_jpg_image_edit.py
 _side_projects/gen_locations_kmeans.py

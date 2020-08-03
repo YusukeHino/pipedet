@@ -6,6 +6,7 @@ import argparse
 import xml.etree.ElementTree as ET
 
 import pandas as pd
+
 annotations = []
 
 def __list_to_csv(output_file):

@@ -23,7 +23,7 @@ def labelimg_to_cvat(list_tag_image: List[ET.Element], input_dir: str, rel_path:
             'id': str(image_id),
             'name': os.path.join(rel_path, os.path.basename(input_dir), filename),
             'width': str(int(width)),
-            'heigt': str(int(height)),
+            'height': str(int(height)),
         }
         image_id += 1
         tag_image = ET.Element('image', attrib=image_attrib)
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     PATH_ROOT = os.path.join(os.environ["HOME"], "data")
     REL_PATH = os.path.join("for_rsm_detection", "separated")
     PATH_OUTPUT = os.path.join(PATH_ROOT, REL_PATH, "annotations")
-    TARGET = "4104_3006"
+    TARGET = "4000_3000"
     out_file = "annotations.xml"
     PATH_INPUT = os.path.join(PATH_ROOT, REL_PATH)
     path_to_out_file = os.path.join(PATH_OUTPUT, TARGET, out_file)

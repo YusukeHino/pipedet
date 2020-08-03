@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import fnmatch
+import copy
 from timeit import default_timer as timer
 from pathlib import Path
 from shutil import copyfile
@@ -13,16 +14,14 @@ from shutil import copyfile
 import requests
 import matplotlib
 import numpy as np
-from PIL import Image
 import cv2
 import hydra
 from omegaconf import DictConfig
 
-from pipedet.structure import cropper
-from pipedet.structure import cv2_to_base64_string
+from pipedet.structure import cv2_to_base64_string, Image, LargeImage, BoxMode
 
 @hydra.main(config_path="config.yaml")
-def demo_plant_inference(cfg : DictConfig):
+def demo_plant_inference(cfg: DictConfig):
     image = cv2.imread(cfg.DEMO_PLANT.INPUT_PATH)
     plant_inference(image)
 
@@ -67,11 +66,10 @@ def container_predict(image_file_path, image_key, port_number=8501):
 .523653388, 0.00771948649], [0.485350043, 0.964359462, 0.576633513, 1.0], [0.48660171, 0.984374464, 0.59
 0121627, 0.999776661], [0.300048769, 0.0, 0.472841799, 0.00200588442], [0.717599332, 0.996715546, 0.7908
 79905, 1.0], [0.475850761, 0.989976227, 0.583369195, 0.998669922], [0.689930916, 0.996614695, ...
-
     """
 
-    with io.open(image_file_path, 'rb') as image_file:
-        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    target_image = cv2.imread(image_file_path)
+    encoded_image = cv2_to_base64_string(target_image)
 
     # The example here only shows prediction with one image. You can extend it
     # to predict with a batch of images indicated by different keys, which can
@@ -89,9 +87,18 @@ def container_predict(image_file_path, image_key, port_number=8501):
     url = 'http://automl_20200614:{}/v1/models/default:predict'.format(port_number)
 
     response = requests.post(url, data=json.dumps(instances))
-    print(response.json())
+    bboxes = response.json()['predictions'][0]['detection_boxes']
+
+    img = Image(image=target_image, box_mode=BoxMode.YXYX_REL, bboxes=bboxes)
+
+    cv2.imwrite('/home/appuser/data/board/demo.png', img.image_drawn)
+
         
 if __name__ == '__main__':
     # demo_plant_inference()
     PATH_TO_IMAGE = "/home/appuser/data/for_rsm_detection/cropped_1024_1024/test/20181205_005_0000001_0.png"
-    container_predict(PATH_TO_IMAGE, "inference_test")
+    PATH_TO_LARGE_IMAGE = "/home/appuser/data/facing_via_mirror/3840_2160_60fps/minimum/20200124_022_minimum/frames/0300.jpg"
+    # container_predict(PATH_TO_IMAGE, "inference_test")
+    large_image = LargeImage(cv2.imread(PATH_TO_LARGE_IMAGE))
+    large_image.pipe_det(first_thre=0.9, second_thre=0.9, patch_width=1024, patch_height=1024)
+    cv2.imwrite('/home/appuser/data/board/demo_large_thr.png', large_image.image_drawn)
