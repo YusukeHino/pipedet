@@ -15,6 +15,30 @@ from ..common.box_suppression import suppress_crop_locations, non_max_suppressio
 
 _RawBoxType = Union[List[Union[float, int]], np.ndarray]
 
+# color name to rgb from https://www.rapidtables.com/web/color/RGB_Color.html
+COLOR = ['CORAL', 'ORANGE', 'GREEN', 'AQUA_MARINE', 'DEEP_SKY_BLUE', 'VIOLET', 'DEEP_PINK', 'RED', 'LIME', 'BLUE', 'YELLOW', 'CYAN', 'MAGENTA']
+COLOR_NAME_TO_RGB = {'BLACK': (0, 0, 0),
+              'WHITE': (255,255,255),
+              'RED': (255,0,0),
+              'LIME': (0,255,0),
+              'BLUE': (0,0,255),
+              'YELLOW': (255,255,0),
+              'CYAN': (0,255,255),
+              'MAGENTA': (255,0,255),
+              'CORAL': (255,127,80),
+              'ORANGE': (255,165,0),
+              'GREEN': (0,128,0),
+              'AQUA_MARINE': (127,255,212),
+              'DEEP_SKY_BLUE': (0,191,255),
+              'VIOLET': (238,130,238),
+              'DEEP_PINK': (255,20,147)}
+
+#HINO above dic is correct if (,,) = (R,G,B), so
+COLOR_NAME_TO_BGR = {}
+for c in COLOR:
+    rgb = COLOR_NAME_TO_RGB[c]
+    COLOR_NAME_TO_BGR[c] = (rgb[2],rgb[1],rgb[0])
+
 class CropperSizeError(Exception):
     """
     Usupported image size is received.
@@ -143,10 +167,11 @@ class Image():
     """
     def __init__(
         self,
-        image: np.ndarray,
+        image: np.ndarray=None,
         box_mode: "BoxMode"=BoxMode.XYXY_ABS,
         bboxes: Optional[List[List[int]]]=None,
-        rel_path: Optional[str]=None
+        rel_path: Optional[str]=None,
+        track_ids: Optional[List[int]]=None,
         ) -> None:
 
         assert isinstance(image, np.ndarray), f"argument 'image' is {type(image)}, expected np.ndarray"
@@ -217,6 +242,39 @@ class Image():
         else:
             pass
         return image_copy
+    
+    
+    def depict_bbox(self, image: np.ndarray, bbox: List[int], color: Optional[Tuple[int, int, int]]=None, class_confidence: Optional[Tuple[float, float]]=None, track_id: Optional[int]=None) -> None:
+
+        bbox_size_str = str(bbox[2]-bbox[0]) + "*" + str(bbox[3]-bbox[1])
+
+        if class_confidence is not None:
+            class_confidence_str = str(class_confidence[1])
+        if (track_id is None) or (track_id == -1):
+            if color is None:
+                color = (0, 255, 0)
+            self.depict_rectange(image, bbox, color)
+            if class_confidence is not None:
+                text_to_depict = bbox_size_str + "_" + class_confidence_str
+            else:
+                text_to_depict = bbox_size_str
+            cv2.putText(image, text_to_depict, (bbox[2]+10, bbox[3]),0,1.0,color)
+        else:
+            color = COLOR_NAME_TO_BGR[COLOR[track_id % len(COLOR)]]
+            text_to_depict = 'ID: '+ str(track_id) + "_" + bbox_size_str
+            self.depict_rectange(image, bbox, color)
+            cv2.rectangle(image, (bbox[0]-2, bbox[1]-55), (bbox[2]+330, bbox[3]), color, -1, 1)
+            cv2.putText(image, text_to_depict,(bbox[0], bbox[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,0), 2, cv2.LINE_AA)
+
+            
+    def depict_rectange(self, image: np.ndarray, bbox: List[int], color: Tuple[int, int, int]) -> None:
+        cv2.rectangle(
+            img=image,
+            pt1=(bbox[0], bbox[1]),
+            pt2=(bbox[2], bbox[3]),
+            color=color,
+            thickness=5
+        )
 
     @property
     def image_w_patch_grid(self) -> Any:
@@ -334,6 +392,10 @@ class LargeImage(Image):
                 cv2.rectangle(image_copy, (crop[0], crop[1]), (crop[2], crop[3]), (0,0,255), 10)
                 cv2.putText(image_copy, str(crop[2]-crop[0]) + "_" + str(crop[3]-crop[1]), (crop[2]+10, crop[3]),0,0.3,(0,0,255))
         return image_copy
+    
+    def clear_patches(self) -> None:
+        self.first_crop_locations = []
+        self.second_crop_locations = []
     
     def calculate_first_crop_location(self, desired_width: int, desired_height: int) -> List[List[int]]:
         """

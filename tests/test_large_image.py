@@ -71,7 +71,7 @@ class TestLargeImage(unittest.TestCase):
             path_image = os.path.join(ROOT_MINIMUM, image_name)
             image = cv2.imread(path_image)
             large_image = LargeImage(image)
-            large_image.pipe_det(first_thre=0.9, second_thre=0.9, patch_width=1024, patch_height=1024)
+            large_image.pipe_det(first_thre=0.5, second_thre=0.5, patch_width=1024, patch_height=1024)
             cv2.imwrite(os.path.join(ROOT_MINIMUM_RES, image_name), large_image.image_drawn)
             
 

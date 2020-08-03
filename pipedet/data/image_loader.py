@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections import OrderedDict
 from typing import List, Tuple, Optional, Union, Any
 
-from ..structure.frame import Frame
+from ..structure.large_image import LargeImage
 
 class TrackingFrameLoader:
 
@@ -32,5 +32,5 @@ class TrackingFrameLoader:
     def __next__(self):
         for frame_num, frame_path in self.full_paths_to_frame.items():
             image = cv2.imread(frame_path)
-            frame = Frame(image=imgae, frame_num=frame_num)
-            yield frame
+            large_image = LargeImage(image=imgae, frame_num=frame_num)
+            yield large_image

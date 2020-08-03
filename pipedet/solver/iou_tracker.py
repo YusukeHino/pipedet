@@ -1,9 +1,13 @@
 
+import logging
+import time
+import weakref
 from typing import List, Tuple, Optional, Union, Any
 
 import numpy as np
 
 from ..data.image_loader import TrackingFrameLoader
+from ..structure.large_image import LargeImage
 
 
 class BBox:
@@ -73,12 +77,66 @@ class Trajectory:
         return self.head.superclass_id
 
 
-class BaseTracker:
+class TrackerBase:
 
     available_id: int = 1
+    
+    def __init__(self):
+        self._hooks = []
+        self.tracker.record: Optional[LargeImage] = None
 
-    def __init__(self) -> None:
-        pass
+    def register_hooks(self, hooks):
+        """
+
+        """
+        hooks = [h for h in hooks if h is not None]
+        for h in hooks:
+            assert isinstance(h, HookBase)
+            h.tracker = weakref.proxy(self)
+        self._hooks.extend(hooks)
+
+    def track(self, start_iter: int, max_iter: int):
+        """
+        Args:
+            start_iter, max_iter (int): See docs above
+        """
+        logger = logging.getLogger(__name__)
+        logger.info("Starting training from iteration {}".format(start_iter))
+
+        self.iter = self.start_iter = start_iter
+        self.max_iter = max_iter
+
+        try:
+            self.before_track()
+            for self.iter in range(start_iter, max_iter):
+                self.before_step()
+                self.run_step()
+                self.after_step()
+        except Exception:
+            logger.exception("Exception during training:")
+            raise
+        finally:
+            self.after_track()
+
+    def before_track(self):
+        for h in self._hooks:
+            h.before_track()
+
+    def after_track(self):
+        for h in self._hooks:
+            h.after_train()
+
+    def before_step(self):
+        self._data = next(self.loader_iter)
+        for h in self._hooks:
+            h.before_step()
+
+    def after_step(self):
+        for h in self._hooks:
+            h.after_step()
+
+    def run_step(self):
+        raise NotImplementedError
 
     def load_frames(self, root_images: str):
         self.loader = TrackingFrameLoader(root_images=root_images)
@@ -90,11 +148,23 @@ class BaseTracker:
         cls.available_id += 1
         return ret
 
-class IoUTracker(BaseTracker):
-    """
-    """
+    @property
+    def data(self) -> Any:
+        return self._data
 
+class IoUTracker(TrackerBase):
+    """
+    """
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__()
+        self.state_boxes: List[List[int]] = []
+        self.state_track_ids: List[int] = []
+        self.state_ages: List[int] = []
 
-    def linear
+    def run_step(self):
+        self.iou_tracking(self.state_boxes, self.data.boxes, iou_thre=0.5)
+
+    def iou_tracking(boxes_a: List[List[int]], boxes_b: List[List[int]]):
+        '''
+        '''
+        pass # TODO
