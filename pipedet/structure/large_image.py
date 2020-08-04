@@ -218,33 +218,21 @@ class Image():
         except NotImplementedError:
             image_copy = self.image.copy()
         if not self.bboxes is None:
-            if hasattr(self, "class_confidences"):
-                assert len(self.bboxes) == len(self.class_confidences) or len(self.class_confidences) == 0, "length of bboxes and class_confidences are not same in spite of not beign zero of len(class_confidences)"
-                for idx, bbox in enumerate(self.bboxes):
-                    try:
-                        class_confidence = self.class_confidences[idx]
-                    except IndexError:
-                        class_confidence = (0., 1.)
-                    # TODO: subroutinize
-                    cv2.rectangle(
-                        img=image_copy,
-                        pt1=(bbox[0], bbox[1]),
-                        pt2=(bbox[2], bbox[3]),
-                        color=(0,255,0),
-                        thickness=5
-                        )
-                    cv2.putText(image_copy, str(bbox[2]-bbox[0]) + "*" + str(bbox[3]-bbox[1]) + "_" + str(class_confidence[1]), (bbox[2]+10, bbox[3]),0,1.0,(0,255,0))  
-            else:
-                for idx, bbox in enumerate(self.bboxes):
-                    cv2.rectangle(image_copy, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), 5)
-                    cv2.putText(image_copy, str(bbox[2]-bbox[0]) + "*" + str(bbox[3]-bbox[1]), (bbox[2]+10, bbox[3]),0,1.0,(0,255,0))
-
-        else:
-            pass
+            assert len(self.bboxes) == len(self.class_confidences) or len(self.class_confidences) == 0, "length of bboxes and class_confidences are not same in spite of not beign zero of len(class_confidences)"
+            for idx, bbox in enumerate(self.bboxes):
+                if hasattr(self, "class_confidences"):
+                    class_confidence = self.class_confidences[idx]
+                else:
+                    class_confidence = (0., 1.)
+                if hasattr(self, "track_ids"):
+                    track_id = self.track_ids[idx]
+                else:
+                    track_id = None
+                self.depict_bbox(image_copy, bbox, class_confidence, track_id)
         return image_copy
     
     
-    def depict_bbox(self, image: np.ndarray, bbox: List[int], color: Optional[Tuple[int, int, int]]=None, class_confidence: Optional[Tuple[float, float]]=None, track_id: Optional[int]=None) -> None:
+    def depict_bbox(self, image: np.ndarray, bbox: List[int], class_confidence: Optional[Tuple[float, float]]=None, track_id: Optional[int]=None, color: Optional[Tuple[int, int, int]]=None) -> None:
 
         bbox_size_str = str(bbox[2]-bbox[0]) + "*" + str(bbox[3]-bbox[1])
 
@@ -261,9 +249,9 @@ class Image():
             cv2.putText(image, text_to_depict, (bbox[2]+10, bbox[3]),0,1.0,color)
         else:
             color = COLOR_NAME_TO_BGR[COLOR[track_id % len(COLOR)]]
-            text_to_depict = 'ID: '+ str(track_id) + "_" + bbox_size_str
+            text_to_depict = 'ID:'+ str(track_id) + " " + bbox_size_str
             self.depict_rectange(image, bbox, color)
-            cv2.rectangle(image, (bbox[0]-2, bbox[1]-55), (bbox[2]+330, bbox[3]), color, -1, 1)
+            cv2.rectangle(image, (bbox[0]-2, bbox[1]-55), (bbox[2]+330, bbox[1]), color, -1, 1)
             cv2.putText(image, text_to_depict,(bbox[0], bbox[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,0), 2, cv2.LINE_AA)
 
             

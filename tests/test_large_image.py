@@ -50,19 +50,19 @@ class TestLargeImage(unittest.TestCase):
     def test_pipedet_1(self):
         self.setup(0)
         cv2.imwrite(PATH_TO_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}.jpg', self.large_image.image)
-        self.large_image.pipe_det(first_thre=0.9, second_thre=0.9, patch_width=1024, patch_height=1024)
+        self.large_image.pipe_det(first_thre=0.5, second_thre=0.5, patch_width=1024, patch_height=1024)
         cv2.imwrite(PATH_TO_RESULT_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}.jpg', self.large_image.image_drawn)
 
     def test_pipedet_2(self):
         self.setup(1)
         cv2.imwrite(PATH_TO_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}.jpg', self.large_image.image)
-        self.large_image.pipe_det(first_thre=0.9, second_thre=0.9, patch_width=1024, patch_height=1024)
+        self.large_image.pipe_det(first_thre=0.5, second_thre=0.5, patch_width=1024, patch_height=1024)
         cv2.imwrite(PATH_TO_RESULT_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}.jpg', self.large_image.image_drawn)
 
     def test_pipedet_3(self):
         self.setup(2)
         cv2.imwrite(PATH_TO_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}.jpg', self.large_image.image)
-        self.large_image.pipe_det(first_thre=0.9, second_thre=0.9, patch_width=1024, patch_height=1024)
+        self.large_image.pipe_det(first_thre=0.5, second_thre=0.5, patch_width=1024, patch_height=1024)
         cv2.imwrite(PATH_TO_RESULT_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}.jpg', self.large_image.image_drawn)
 
     def test_pipedet_4(self):
@@ -73,6 +73,13 @@ class TestLargeImage(unittest.TestCase):
             large_image = LargeImage(image)
             large_image.pipe_det(first_thre=0.5, second_thre=0.5, patch_width=1024, patch_height=1024)
             cv2.imwrite(os.path.join(ROOT_MINIMUM_RES, image_name), large_image.image_drawn)
+
+    def test_depict_track_1(self):
+        self.setup(0)
+        cv2.imwrite(PATH_TO_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}_depict_track.jpg', self.large_image.image)
+        self.large_image.pipe_det(first_thre=0.5, second_thre=0.5, patch_width=1024, patch_height=1024)
+        self.large_image.track_ids = [_ for _ in range(1, 1 + len(self.large_image.bboxes))]
+        cv2.imwrite(PATH_TO_RESULT_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}_depict_track.jpg', self.large_image.image_drawn)
             
 
     if __name__ == '__main__':
