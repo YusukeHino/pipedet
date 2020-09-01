@@ -54,7 +54,7 @@
 # [Python]
 
 # Byte-compiled / optimized / DLL files
-# __pycache__/
+__pycache__/
 # *.py[cod]
 # *$py.class
 
@@ -75,7 +75,7 @@
 # sdist/
 # var/
 # wheels/
-# *.egg-info/
+*.egg-info/
 # .installed.cfg
 # *.egg
 # MANIFEST
@@ -160,15 +160,17 @@
 
 # custom
 
-# *.jpg
-# *.png
+*.jpg
+*.JPG
+*.png
+*.PNG
 # *.ods
 # *.txt
 # *.npy
-# *.mp4
+*.mp4
 # *.xml
 # *.csv
-# *.MP4
+*.MP4
 # *.lvix
 # *.pdf
 # !project_illustration.jpg

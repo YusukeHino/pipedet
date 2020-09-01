@@ -3,8 +3,12 @@ services:
   main:
     build:
       context: ./
+    environment:
+      - DISPLAY=${DISPLAY}
     volumes:
-      - ${HOME}/src/pipe-det:/home/appuser/src/pipe-det
+      - ${HOME}/src/pipedet:/home/appuser/src/pipedet
       - ${HOME}/data:/home/appuser/data
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${HOME}/.Xauthority:/root/.Xauthority:rw
     stdin_open: true
     tty: true

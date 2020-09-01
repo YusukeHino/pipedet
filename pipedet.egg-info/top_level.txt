@@ -1,0 +1,4 @@
+_side_projects
+pipedet
+tools
+video_parser_v1

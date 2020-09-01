@@ -9,6 +9,8 @@ from pathlib import Path
 from timeit import default_timer as timer
 from PIL import Image
 import sys
+import hydra
+from omegaconf import DictConfig
 
 from crop_functions import crop_from_one_frame, mask_from_one_frame, crop_from_one_frame_WITH_MASK_in_mem, get_number_of_crops_from_frame
 from yolo_handler import run_yolo
@@ -17,11 +19,12 @@ from visualize_time_measurement import visualize_time_measurements, visualize_as
 from nms import py_cpu_nms, non_max_suppression_tf
 from bbox_postprocessing import postprocess_bboxes_by_splitlines
 from data_handler import save_string_to_file, saveDict, loadDict, is_non_zero_file
+from ..tools.cropper import crop_from_raw_input
 
 # input frames images
 # output marked frames images
-#@profile
-def main_sketch_run(INPUT_FRAMES, RUN_NAME, SETTINGS):
+@hydra.main(config_path="config.yml")
+def main_sketch_run(INPUT_FRAMES, RUN_NAME, SETTINGS) -> None:
     video_file_root_folder = str(Path(INPUT_FRAMES).parents[1])
     output_frames_folder = video_file_root_folder + "/output/" + RUN_NAME + "/frames/"
     output_measurement_viz = video_file_root_folder + "/output/" + RUN_NAME + "/graphs"
