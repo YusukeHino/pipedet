@@ -7,6 +7,8 @@ from typing import List, Tuple, Optional, Union, Any
 
 from ..structure.large_image import LargeImage
 
+import cv2
+
 class TrackingFrameLoader:
 
     def __init__(self, root_images: str, frame_num_start: int=1, frame_num_end: int=-1):
@@ -25,12 +27,14 @@ class TrackingFrameLoader:
             full_path_to_frame = os.path.join(root_images, frame_name)
             self.full_paths_to_frame[frame_num_count] = full_path_to_frame
             frame_num_count += 1
+        self.frame_num_iter = frame_num_start
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        for frame_num, frame_path in self.full_paths_to_frame.items():
-            image = cv2.imread(frame_path)
-            large_image = LargeImage(image=imgae, frame_num=frame_num)
-            yield large_image
+        frame_path = self.full_paths_to_frame[self.frame_num_iter]
+        image = cv2.imread(frame_path)
+        large_image = LargeImage(image=image)
+        self.frame_num_iter += 1
+        return large_image

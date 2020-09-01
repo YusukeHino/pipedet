@@ -19,6 +19,4 @@ RUN pip install --user hydra-core --upgrade
 RUN pip install --user omegaconf
 RUN pip install --user mypy
 
-RUN pip install --user -e pipedet
-
 CMD ["/bin/bash"]

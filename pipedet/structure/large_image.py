@@ -248,7 +248,7 @@ class Image():
                 text_to_depict = bbox_size_str
             cv2.putText(image, text_to_depict, (bbox[2]+10, bbox[3]),0,1.0,color)
         else:
-            color = COLOR_NAME_TO_BGR[COLOR[track_id % len(COLOR)]]
+            color = COLOR_NAME_TO_BGR[COLOR[int(track_id % len(COLOR))]]
             text_to_depict = 'ID:'+ str(track_id) + " " + bbox_size_str
             self.depict_rectange(image, bbox, color)
             cv2.rectangle(image, (bbox[0]-2, bbox[1]-55), (bbox[2]+330, bbox[1]), color, -1, 1)
