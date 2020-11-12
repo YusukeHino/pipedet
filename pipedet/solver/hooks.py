@@ -8,10 +8,13 @@ import time
 import copy
 from collections import Counter
 import zipfile
-from typing import List, Tuple, Optional, Union, Any
+from collections import defaultdict
+from typing import List, Tuple, Optional, Union, Any, DefaultDict, Dict
 
+import numpy as np
 import cv2
 
+from ..structure.large_image import BoxMode
 
 class HookBase:
     """
@@ -43,7 +46,7 @@ class HookBase:
         pass
 
 
-class Detection(HookBase):
+class MirrorDetection(HookBase):
 
     def __init__(self, first_thre: float, second_thre: float):
         self.first_thre = first_thre
@@ -52,6 +55,39 @@ class Detection(HookBase):
     def before_step(self):
         self.tracker.data.pipe_det(first_thre=self.first_thre, second_thre=self.second_thre, patch_width=1024, patch_height=1024)
         self.tracker.state_detections = self.tracker.data.bboxes
+
+class RoadObjectDetection(HookBase):
+
+    def __init__(self, score_thre: float=0):
+        self.score_thre = score_thre
+        if self.score_thre != 0:
+            raise NotImplementedError
+
+    def before_step(self):
+        self.tracker.data.inference_of_objct_detection(server = "EFFICIENTDET")
+        self.tracker.state_detections = self.tracker.data.bboxes
+
+class BoxCoordinateNormalizer(HookBase):
+    """
+    If the size of image varies in the sequence, this hook should be inserted after detector and before recorder.
+    """
+
+    def before_step(self):
+        """
+        XYXY_ABS to XYXYREL
+        """
+        self.width = self.tracker.data.width
+        self.height = self.tracker.data.height
+
+        self.tracker.state_detections = BoxMode.convert_boxes(self.tracker.state_detections, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+        self.tracker.state_boxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+
+    def after_step(self):
+        """
+        XYXY_REL to XYXY_ABS
+        """
+
+        self.tracker.state_boxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_REL, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
 
 class Recorder(HookBase):
 
@@ -63,14 +99,53 @@ class Recorder(HookBase):
 
 class ImageWriter(HookBase):
 
-    def __init__(self, root_output_images: str):
+    def __init__(self, root_output_images: str, image_extention: str='.png'):
         self.root_output_images = root_output_images
+        self.image_extention = image_extention
 
     def after_step(self):
-        image_name = str(self.tracker.iter).zfill(4) + ".jpg"
+        image_name = str(self.tracker.iter).zfill(4) + self.image_extention
         self.output_image_path = os.path.join(self.root_output_images, image_name)
         self.tracker.record.clear_patches()
         cv2.imwrite(self.output_image_path, self.tracker.record.image_drawn)
+        assert os.path.exists(self.output_image_path)
+
+class MOTReader(HookBase):
+    def __init__(self, path_mot_txt: str):
+        self.path_mot_txt = path_mot_txt
+        assert os.path.isfile(self.path_mot_txt), self.path_mot_txt
+    
+    def before_step(self):
+        self.read_from_mot_txt(self.path_mot_txt)
+
+    def read_from_mot_txt(self, mot_txt_file: str):
+        mapped_annotations = self.get_mapped_annotatons_from_mot_txt(mot_txt_file)
+        frame_num = self.tracker.iter + 1
+        annotations = mapped_annotations[frame_num]
+        self.tracker.state_boxes = []
+        self.tracker.state_track_ids = []
+        self.tracker._data.class_confidences = []
+        for listed_line in annotations: # for each object
+            bbox = [float(x) for x in listed_line[2:6]]
+            bbox[0] -= 1.
+            bbox[1] -= 1.
+            bbox = [bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]
+            bbox = [int(x) for x in bbox]
+            class_confidence = float(listed_line[6])
+            self.tracker.state_boxes.append(bbox)
+            self.tracker.state_track_ids.append(int(listed_line[1]))
+            self.tracker._data.class_confidences.append((0.0, class_confidence))
+                
+    def get_mapped_annotatons_from_mot_txt(self, mot_txt_file: str) -> DefaultDict[int, List[List[str]]]:
+        with open(mot_txt_file, "r") as mot_txt:
+            annotations: DefaultDict[int, List[List[str]]] = defaultdict(lambda: [])
+            for line in mot_txt: # per-object
+                line = line.rstrip('\r\n')
+                listed_line = line.split(',')
+                frame_num = int(listed_line[0])
+                annotations[frame_num].append(listed_line)
+            return annotations
+        
 
 class MOTWriter(HookBase):
 

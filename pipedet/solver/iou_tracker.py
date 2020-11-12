@@ -96,20 +96,20 @@ class TrackerBase:
             h.tracker = weakref.proxy(self)
         self._hooks.extend(hooks)
 
-    def track(self, start_iter: int, max_iter: int):
+    def track(self):
         """
         Args:
-            start_iter, max_iter (int): See docs above
         """
-        logger = logging.getLogger(__name__)
-        logger.info("Starting training from iteration {}".format(start_iter))
 
-        self.iter = self.start_iter = start_iter
-        self.max_iter = max_iter
+        self.start_iter = self.loader.frame_num_start
+        self.end_iter = self.loader.frame_num_end
+        # self.iter = self.start_iter
+        logger = logging.getLogger(__name__)
+        logger.info("Starting training from iteration {}".format(self.start_iter))
 
         try:
             self.before_track()
-            for self.iter in range(start_iter, max_iter):
+            for self.iter in range(self.start_iter, self.end_iter):
                 self.before_step()
                 self.run_step()
                 self.after_step()
@@ -139,8 +139,8 @@ class TrackerBase:
     def run_step(self):
         raise NotImplementedError
 
-    def load_frames(self, root_images: str):
-        self.loader = TrackingFrameLoader(root_images=root_images)
+    def load_frames(self, *args, **kwargs):
+        self.loader = TrackingFrameLoader(*args, **kwargs)
         self.loader_iter = iter(self.loader)
 
     @classmethod
@@ -158,10 +158,10 @@ class IoUTracker(TrackerBase):
     """
     def __init__(self, *args, **kwargs) -> None:
         super().__init__()
-        self.state_boxes: List[List[int]] = []
+        self.state_boxes: List[List[Union[int, float]]] = []
         self.state_track_ids: List[int] = []
         self.state_ages: List[int] = []
-        self.state_detections: List[List[int]] = []
+        self.state_detections: List[List[Union[int, float]]] = []
 
     def run_step(self):
         state_boxes: np.ndarray = np.array(self.state_boxes)
@@ -235,3 +235,7 @@ class IoUTracker(TrackerBase):
         s_b = (b[2] - b[0])*(b[3] - b[1])
 
         return float(s_intsec)/(s_a + s_b -s_intsec)
+
+class MOTReadingAsTracker(TrackerBase):
+    def run_step(self):
+        pass

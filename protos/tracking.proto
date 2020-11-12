@@ -1,0 +1,24 @@
+
+syntax = "proto3";
+
+package tracking;
+
+service Tracker {
+  rpc SayHello (TrackingRequest) returns (TrackingReply) {}
+}
+
+message TrackingRequest {
+  string flag = 1;
+}
+
+message Tracking {
+  string image = 1;
+}
+
+message TrackingEndRequest {
+  
+}
+
+message TrackingReply {
+  string message = 1;
+}

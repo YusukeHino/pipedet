@@ -12,6 +12,7 @@ import cv2
 
 from .image_encoder import cv2_to_base64_string
 from ..common.box_suppression import suppress_crop_locations, non_max_suppression_fast
+from ..common.super_resolution import super_resolution
 
 _RawBoxType = Union[List[Union[float, int]], np.ndarray]
 
@@ -93,7 +94,12 @@ class BoxMode(IntEnum):
     YXYX_REL = 4
     """
     Not yet supported!
-    (x0, y0, w, h) in range [0, 1]. They are relative to the size of the image.
+    (y0, x0, y1, x1) in range [0, 1]. They are relative to the size of the image.
+    """
+    YXYX_ABS = 5
+    """
+    Not yet supported!
+    (y0, x0, y1, x1) in absolute floating points coordinates.
     """
 
     @classmethod
@@ -130,6 +136,11 @@ class BoxMode(IntEnum):
         elif from_mode == BoxMode.XYXY_ABS and to_mode == BoxMode.XYWH_ABS:
             arr[:, 2] -= arr[:, 0]
             arr[:, 3] -= arr[:, 1]
+        elif from_mode == BoxMode.XYXY_ABS and to_mode == BoxMode.XYXY_REL:
+            arr[0] = box[0] / width
+            arr[1] = box[1] / height
+            arr[2] = box[2] / width
+            arr[3] = box[3] / height
         elif from_mode == BoxMode.XYWH_REL and to_mode == BoxMode.XYXY_ABS:
             assert not width is None and not height is None, "If you convert over REL<->ABS, you need width and height"
             arr[0] = int(arr[0]*width)
@@ -148,6 +159,11 @@ class BoxMode(IntEnum):
             arr[1] = int(box[0]*width)
             arr[2] = int(box[3]*height)
             arr[3] = int(box[2]*width)
+        elif from_mode == BoxMode.YXYX_ABS and to_mode == BoxMode.XYXY_ABS:
+            arr[0] = int(box[1])
+            arr[1] = int(box[0])
+            arr[2] = int(box[3])
+            arr[3] = int(box[2])
 
         else:
             raise NotImplementedError(
@@ -218,7 +234,7 @@ class Image():
         except NotImplementedError:
             image_copy = self.image.copy()
         if not self.bboxes is None:
-            assert len(self.bboxes) == len(self.class_confidences) or len(self.class_confidences) == 0, "length of bboxes and class_confidences are not same in spite of not beign zero of len(class_confidences)"
+            assert len(self.bboxes) == len(self.class_confidences) or len(self.class_confidences) == 0, "length of bboxes and class_confidences are not same in spite of not being zero of len(class_confidences)"
             for idx, bbox in enumerate(self.bboxes):
                 if hasattr(self, "class_confidences"):
                     class_confidence = self.class_confidences[idx]
@@ -230,7 +246,6 @@ class Image():
                     track_id = None
                 self.depict_bbox(image_copy, bbox, class_confidence, track_id)
         return image_copy
-    
     
     def depict_bbox(self, image: np.ndarray, bbox: List[int], class_confidence: Optional[Tuple[float, float]]=None, track_id: Optional[int]=None, color: Optional[Tuple[int, int, int]]=None) -> None:
 
@@ -279,8 +294,16 @@ class Image():
     def get_crop(self, box: List[int]) -> np.ndarray:
         return self.image[box[1]:box[3],box[0]:box[2],:]
 
-    def inference_of_objct_detection(self):
-        self.container_predict() # TODO: set config flow
+    def super_resolution(self):
+        self.image = super_resolution(self.image)
+
+    def inference_of_objct_detection(self, server = "AUTOML"):
+        if server == "AUTOML":
+            self.container_predict() # TODO: set config flow
+        elif server == "EFFICIENTDET":
+            self.client_efficientdet()
+        else:
+            raise NotImplementedError
 
     def container_predict(self):
         encoded_image = cv2_to_base64_string(self.image)
@@ -293,11 +316,57 @@ class Image():
         port_number=8501
         url = f'http://automl_20200729:{port_number}/v1/models/default:predict'
         response = requests.post(url, data=json.dumps(instances))
+        try:
+            response.raise_for_status()
+        except:
+            print(response.content)
         pre_convert_bboxes = response.json()['predictions'][0]['detection_boxes']
         self.class_confidences = response.json()['predictions'][0]['detection_multiclass_scores']
         assert not self.bboxes, "Imgae object has some bbox attribute, so ObjDet has been canceled."
         self.bboxes = BoxMode.convert_boxes(pre_convert_bboxes, from_mode=BoxMode.YXYX_REL, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
     
+    def client_efficientdet(self):
+        encoded_image = cv2_to_base64_string(self.image)
+        instances = {
+                'instances': [
+                        {'image_bytes': {'b64': encoded_image},
+                        'key': 'any'}
+                ]
+        }
+        port_number=8501
+        url = f'http://efficientdet:{port_number}'
+        response = requests.post(url, data=json.dumps(instances))
+        try:
+            response.raise_for_status()
+        except:
+            print(response.content)
+        content = response.json()
+        pre_convert_bboxes = content['predictions'][0]['detection_boxes']
+        self.class_confidences = [(0, x) for x in content['predictions'][0]['class_confidences']]
+        self.class_ids = []
+        self.class_ids = content['predictions'][0]['class_ids']
+        assert not self.bboxes, "Imgae object has some bbox attribute, so ObjDet has been canceled."
+        self.bboxes = BoxMode.convert_boxes(pre_convert_bboxes, from_mode=BoxMode.YXYX_ABS, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
+
+    # def tf_serving(self):
+    #     tmp_image = self.image.copy()
+    #     tmp_image = cv2.cvtColor(tmp_image, cv2.COLOR_BGR2RGB)
+    #     port_number=8501
+    #     url = f'http://tf_serving_for_efficientdet:{port_number}/v1/models/efficientdet/versions/1:predict'
+    #     # headers = {"content-type": "application/json"}
+    #     data = json.dumps({"signature_name": "serving_default", "instances": tmp_image[0:3].tolist()})
+    #     response = requests.post(url, data=data)
+    #     try:
+    #         response.raise_for_status()
+    #     except:
+    #         print(response.content)
+    #     jsoned_response = response.json()
+    #     pre_convert_bboxes = jsoned_response['predictions'][0]
+    #     self.class_confidences = [(0., x[5]) for x in pre_convert_bboxes]
+    #     pre_convert_bboxes = [x[1:5] for x in pre_convert_bboxes]
+    #     self.bboxes = BoxMode.convert_boxes(pre_convert_bboxes, from_mode=BoxMode.YXYX_REL, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
+
+
     def get_global_bboxes(self, global_location_of_image: List[int]) -> List[List[int]]:
         global_bboxes = []
         for bbox in self.bboxes:

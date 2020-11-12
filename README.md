@@ -6,7 +6,7 @@ docker-compose up -d
 ```
 
 ```
-docker exec -it pipedet bash
+docker exec -it pipedet_main_1 bash
 ```
 
 

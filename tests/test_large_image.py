@@ -31,6 +31,11 @@ SLIDES = [
     (-200, 200),
 ]
 
+PATH_TO_CROPPED_MIRROR = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20201016_001/frames/0198.png"
+PATH_TO_RESULT_CROPPED_MIRROR = os.path.join(RESULT_ROOT, "demo_tf_serving_0198.png")
+# PATH_TO_CROPPED_MIRROR = "/home/appuser/data/general_in_vehicle_seqs/0016/000078.png"
+# PATH_TO_RESULT_CROPPED_MIRROR = os.path.join(RESULT_ROOT, "demo_tf_serving_000078.png")
+
 class TestLargeImage(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
@@ -80,7 +85,14 @@ class TestLargeImage(unittest.TestCase):
         self.large_image.pipe_det(first_thre=0.5, second_thre=0.5, patch_width=1024, patch_height=1024)
         self.large_image.track_ids = [_ for _ in range(1, 1 + len(self.large_image.bboxes))]
         cv2.imwrite(PATH_TO_RESULT_IMAGES[0][:-4] + f'_slide_{self.dx}_{self.dy}_depict_track.jpg', self.large_image.image_drawn)
-            
+    
+    def test_efficientdet_client(self):
+        original_image = cv2.imread(PATH_TO_CROPPED_MIRROR)
+        self.large_image = LargeImage(original_image)
+        self.large_image.inference_of_objct_detection(server="EFFICIENTDET")
+        cv2.imwrite(PATH_TO_RESULT_CROPPED_MIRROR, self.large_image.image_drawn)
+
+
 
     if __name__ == '__main__':
         unittest.main()
