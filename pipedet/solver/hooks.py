@@ -58,13 +58,12 @@ class MirrorDetection(HookBase):
 
 class RoadObjectDetection(HookBase):
 
-    def __init__(self, score_thre: float=0):
+    def __init__(self, score_thre: float=0.):
         self.score_thre = score_thre
-        if self.score_thre != 0:
-            raise NotImplementedError
 
     def before_step(self):
         self.tracker.data.inference_of_objct_detection(server = "EFFICIENTDET")
+        self.tracker.data.adapt_class_confidence_thre(self.score_thre)
         self.tracker.state_detections = self.tracker.data.bboxes
 
 class BoxCoordinateNormalizer(HookBase):
@@ -89,13 +88,117 @@ class BoxCoordinateNormalizer(HookBase):
 
         self.tracker.state_boxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_REL, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
 
+class AreaCalculator(HookBase):
+    """
+    After BoxCoordinate
+    """
+
+    def __init__(self):
+        self.buffer_areas = {}
+
+    def before_track(self):
+        self.tracker.state_approaching = []
+
+    def after_step(self):
+        """
+        """
+        self.width = self.tracker.data.width
+        self.height = self.tracker.data.height
+
+        bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+
+        self.tracker.state_approaching = []
+
+        for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
+            area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+            if track_id in self.buffer_areas: # existing track
+                if self.buffer_areas[track_id] - area < 0: # approaching
+                    self.tracker.state_approaching.append(True)
+                else: # not approaching
+                    self.tracker.state_approaching.append(False)
+            else: # new track
+                self.tracker.state_approaching.append(False)
+            self.buffer_areas[track_id] = area
+
+class MidpointCalculator(HookBase):
+    """
+    After BoxCoordinate
+    """
+
+    def __init__(self):
+        self.buffer_midpoint = {}
+
+    def before_track(self):
+        self.tracker.state_approaching = []
+
+    def after_step(self):
+        """
+        """
+        self.width = self.tracker.data.width
+        self.height = self.tracker.data.height
+
+        bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+
+        self.tracker.state_approaching = []
+
+        for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
+            midpoint = ((bbox[2]-bbox[0]) // 2, bbox[3])
+            if track_id in self.buffer_midpoint: # existing track
+                if self.buffer_midpoint[track_id][1] - midpoint[1] < 0: # approaching
+                    self.tracker.state_approaching.append(True)
+                else: # not approaching
+                    self.tracker.state_approaching.append(False)
+            else: # new track
+                self.tracker.state_approaching.append(False)
+            self.buffer_midpoint[track_id] = midpoint
+
+class WidthAndHeihtCalculator(HookBase):
+    """
+    After BoxCoordinate
+    """
+
+    def __init__(self):
+        self.buffer_size = {}
+
+    def before_track(self):
+        self.tracker.state_approaching = []
+
+    def after_step(self):
+        """
+        """
+        self.width = self.tracker.data.width
+        self.height = self.tracker.data.height
+
+        bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+        cnt = 0
+        for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
+            size = (bbox[2]-bbox[0], bbox[3]-bbox[1])
+            if track_id in self.buffer_size: # existing track
+                if self.buffer_size[track_id][0] >= size[0]: # not approaching
+                    self.tracker.state_approaching[cnt] = False
+                if self.buffer_size[track_id][1] >= size[1]: # not approaching
+                    self.tracker.state_approaching[cnt] = False
+            else: # new track
+                self.tracker.state_approaching[cnt] = False
+            self.buffer_size[track_id] = size
+            cnt += 1
+
+# class RiskPredictor(HookBase):
+#     def __init__(self):
+    
+#     def before_track(self):
+
+
 class Recorder(HookBase):
 
     def after_step(self):
         record = copy.deepcopy(self.tracker.data)
         record.track_ids = self.tracker.state_track_ids
         record.bboxes = self.tracker.state_boxes
+        if hasattr(self.tracker, 'state_approaching'):
+            record.approaching = self.tracker.state_approaching
         self.tracker.record = record
+
 
 class ImageWriter(HookBase):
 
@@ -109,6 +212,43 @@ class ImageWriter(HookBase):
         self.tracker.record.clear_patches()
         cv2.imwrite(self.output_image_path, self.tracker.record.image_drawn)
         assert os.path.exists(self.output_image_path)
+
+class ImageWriterForApproaching(HookBase):
+
+    def __init__(self, root_output_images: str, image_extention: str='.png'):
+        self.root_output_images = root_output_images
+        self.image_extention = image_extention
+
+    def after_step(self):
+        image_name = str(self.tracker.iter).zfill(4) + self.image_extention
+        self.output_image_path = os.path.join(self.root_output_images, image_name)
+        cv2.imwrite(self.output_image_path, self.tracker.record.image_drawn_as_approaching)
+        assert os.path.exists(self.output_image_path)
+
+class VideoWriter(HookBase):
+    """
+    # TODO: this is not effective.
+    """
+    def __init__(self, root_output_video: str):
+        self.root_output_video = root_output_video
+        fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        frame_rate = 30 # TODO: make cofigureble
+        self.size = (512, 512)
+        self.video_writer = cv2.VideoWriter(os.path.join(self.root_output_video, 'tracked.mp4'), fmt, frame_rate, self.size)
+
+    def after_step(self):
+        frame = self.tracker.record.image_drawn
+        BLACK = (0, 0, 0)
+        width = self.tracker.record.width
+        height = self.tracker.record.height
+        padded_frame = np.full((*self.size, 3), BLACK, dtype=np.uint8)
+        x_c = (self.size[0] - width) // 2
+        y_c = (self.size[1] - height) // 2
+        padded_frame[y_c:y_c+height, x_c:x_c+width] = frame
+        self.video_writer.write(frame)
+
+    def after_track(self):
+        self.video_writer.release()
 
 class MOTReader(HookBase):
     def __init__(self, path_mot_txt: str):

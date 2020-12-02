@@ -162,6 +162,7 @@ class IoUTracker(TrackerBase):
         self.state_track_ids: List[int] = []
         self.state_ages: List[int] = []
         self.state_detections: List[List[Union[int, float]]] = []
+        # self.state_approaching: List[bool] = []
 
     def run_step(self):
         state_boxes: np.ndarray = np.array(self.state_boxes)
