@@ -88,6 +88,48 @@ class BoxCoordinateNormalizer(HookBase):
 
         self.tracker.state_boxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_REL, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
 
+class ApproachingInitializer(HookBase):
+
+    def before_track(self):
+        self.tracker.state_approaching = []
+    
+    def after_step(self):
+        self.tracker.state_approaching = [False] * len(self.tracker.state_track_ids)
+
+    
+class HorizontalMovementCounter(HookBase):
+    """
+    """
+
+    def __init__(self):
+        self.buffer_right_move_num = {}
+
+    def before_track(self):
+        pass
+
+
+    def after_step(self):
+        """
+        """
+        self.width = self.tracker.data.width
+        self.height = self.tracker.data.height
+
+        bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+
+        self.tracker.state_approaching = []
+
+        for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
+            midpoint = ((bbox[2]-bbox[0]) // 2, bbox[3])
+            if track_id in self.buffer_midpoint: # existing track
+                if self.buffer_midpoint[track_id][1] - midpoint[1] < 0: # approaching
+                    self.tracker.state_approaching.append(True)
+                else: # not approaching
+                    self.tracker.state_approaching.append(False)
+            else: # new track
+                self.tracker.state_approaching.append(False)
+            self.buffer_midpoint[track_id] = midpoint
+
+
 class AreaCalculator(HookBase):
     """
     After BoxCoordinate
@@ -139,18 +181,32 @@ class MidpointCalculator(HookBase):
 
         bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
 
-        self.tracker.state_approaching = []
-
+        cnt = 0
         for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
             midpoint = ((bbox[2]-bbox[0]) // 2, bbox[3])
             if track_id in self.buffer_midpoint: # existing track
                 if self.buffer_midpoint[track_id][1] - midpoint[1] < 0: # approaching
-                    self.tracker.state_approaching.append(True)
+                    self.tracker.state_approaching[cnt] = True
                 else: # not approaching
-                    self.tracker.state_approaching.append(False)
+                    self.tracker.state_approaching[cnt] = False
             else: # new track
-                self.tracker.state_approaching.append(False)
+                self.tracker.state_approaching[cnt] = False
             self.buffer_midpoint[track_id] = midpoint
+            cnt += 1
+
+# class MidpointUpdater(HookBase):
+
+#     def after_step(self):
+
+#         self.width = self.tracker.data.width
+#         self.height = self.tracker.data.height
+
+#         bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+
+#         for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
+#             midpoint = ((bbox[2]-bbox[0]) // 2, bbox[3])
+#             self.buffer_midpoint[track_id] = midpoint
+
 
 class WidthAndHeihtCalculator(HookBase):
     """

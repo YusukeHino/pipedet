@@ -3,7 +3,7 @@ import unittest
 
 from pipedet.data.image_loader import TrackingFrameLoader
 from pipedet.solver.iou_tracker import IoUTracker
-from pipedet.solver.hooks import MirrorDetection, RoadObjectDetection, BoxCoordinateNormalizer, AreaCalculator, MidpointCalculator, WidthAndHeihtCalculator, Recorder, ImageWriter, ImageWriterForApproaching, VideoWriter, MOTWriter
+from pipedet.solver.hooks import MirrorDetection, RoadObjectDetection, BoxCoordinateNormalizer, ApproachingInitializer, AreaCalculator, MidpointCalculator, WidthAndHeihtCalculator, Recorder, ImageWriter, ImageWriterForApproaching, VideoWriter, MOTWriter
 from pipedet.structure.large_image import LargeImage
 
 _root_mirror_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/trimed/20201016_001/frames_png"
@@ -24,6 +24,7 @@ _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/r
 
 
 class TestTrackingFrameLoader(unittest.TestCase):
+
     def test_loader(self):
         loader = TrackingFrameLoader(root_images=_root_mirror_images)
         loader_iter = loader
@@ -32,6 +33,7 @@ class TestTrackingFrameLoader(unittest.TestCase):
         self.assertIsInstance(data, LargeImage)
 
 class TestIoUTracker(unittest.TestCase):
+
     def test_mirror_tracking(self):
         tracker = IoUTracker()
         tracker.load_frames(root_images=_root_mirror_images)
@@ -50,6 +52,7 @@ class TestIoUTracker(unittest.TestCase):
         hooks = [
             RoadObjectDetection(score_thre = 0.2),
             BoxCoordinateNormalizer(),
+            ApproachingInitializer(),
             # AreaCalculator(),
             MidpointCalculator(),
             WidthAndHeihtCalculator(),
