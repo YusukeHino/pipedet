@@ -1,5 +1,6 @@
 
 import unittest
+import logging
 
 from pipedet.data.image_loader import TrackingFrameLoader
 from pipedet.solver.iou_tracker import IoUTracker
@@ -22,7 +23,7 @@ _root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/d
 _root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
 _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
 
-
+logging.basicConfig(level=logging.INFO)
 class TestTrackingFrameLoader(unittest.TestCase):
 
     def test_loader(self):

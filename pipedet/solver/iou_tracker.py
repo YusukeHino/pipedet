@@ -104,8 +104,9 @@ class TrackerBase:
         self.start_iter = self.loader.frame_num_start
         self.end_iter = self.loader.frame_num_end
         # self.iter = self.start_iter
-        logger = logging.getLogger(__name__)
-        logger.info("Starting training from iteration {}".format(self.start_iter))
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+        self.logger.info("Starting tracking from iteration {}".format(self.start_iter))
 
         try:
             self.before_track()
@@ -135,6 +136,7 @@ class TrackerBase:
     def after_step(self):
         for h in self._hooks:
             h.after_step()
+        self.logger.info(f"iter: {self.iter}")
 
     def run_step(self):
         raise NotImplementedError
