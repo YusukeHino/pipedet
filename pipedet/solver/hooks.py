@@ -149,18 +149,18 @@ class AreaCalculator(HookBase):
 
         bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
 
-        self.tracker.state_approaching = []
-
+        cnt = 0
         for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
             area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
             if track_id in self.buffer_areas: # existing track
                 if self.buffer_areas[track_id] - area < 0: # approaching
-                    self.tracker.state_approaching.append(True)
+                    self.tracker.state_approaching[cnt] = True
                 else: # not approaching
-                    self.tracker.state_approaching.append(False)
+                    self.tracker.state_approaching[cnt] = False
             else: # new track
-                self.tracker.state_approaching.append(False)
+                self.tracker.state_approaching[cnt] = False
             self.buffer_areas[track_id] = area
+            cnt += 1
 
 class MidpointCalculator(HookBase):
     """
