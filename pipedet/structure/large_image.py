@@ -414,6 +414,23 @@ class Image():
         self.bboxes = filtered_bboxes
         self.class_confidences = filtered_class_confidences
 
+    def remove_too_big_boxes(self, width_thre: float=0.9, height_thre: float=0.9) -> None:
+        filtered_bboxes = []
+        filtered_class_confidences = []
+        bboxes_rel = BoxMode.convert_boxes(self.bboxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+        for bbox, bbox_rel, class_confidence in zip(self.bboxes, bboxes_rel, self.class_confidences):
+            if (bbox_rel[2] - bbox_rel[0] > width_thre) and (bbox_rel[3] - bbox_rel[1] > height_thre):
+                continue
+            elif bbox_rel[2] - bbox_rel[0] > 0.9:
+                continue
+            elif bbox_rel[3] - bbox_rel[1] > 0.9:
+                continue
+            else:
+                filtered_bboxes.append(bbox)
+                filtered_class_confidences.append(class_confidence)
+        self.bboxes = filtered_bboxes
+        self.class_confidences = filtered_class_confidences
+
     def nms(self, iou_thre: float=0.5):
         self.bboxes, self.class_confidences = non_max_suppression_fast(self.bboxes, self.class_confidences, overlapThresh=0.5)
         

@@ -64,6 +64,7 @@ class RoadObjectDetection(HookBase):
     def before_step(self):
         self.tracker.data.inference_of_objct_detection(server = "EFFICIENTDET")
         self.tracker.data.adapt_class_confidence_thre(self.score_thre)
+        self.tracker.data.remove_too_big_boxes(width_thre=0.8, height_thre=0.8)
         self.tracker.state_detections = self.tracker.data.bboxes
 
 class BoxCoordinateNormalizer(HookBase):
@@ -87,6 +88,21 @@ class BoxCoordinateNormalizer(HookBase):
         """
 
         self.tracker.state_boxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_REL, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
+
+class BigBoxRemover(HookBase):
+
+    def __init__(self, max_rel_width: float = 0.9, max_rel_height: float = 0.9):
+        self.max_rel_width = max_rel_width
+        self.max_rel_height = max_rel_height
+
+    def before_step(self):
+        state_detections = [] 
+        for detection in self.tracker.state_detections:
+            if (detection[2] - detection[0] > self.max_rel_width) and (detection[3] - detection[1] > self.max_rel_height):
+                continue
+            else:
+                state_detections.append(detection)
+        self.tracker.state_detections = state_detections
 
 class ApproachingInitializer(HookBase):
 
