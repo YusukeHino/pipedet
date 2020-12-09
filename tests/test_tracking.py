@@ -4,7 +4,7 @@ import logging
 
 from pipedet.data.image_loader import TrackingFrameLoader
 from pipedet.solver.iou_tracker import IoUTracker
-from pipedet.solver.hooks import MirrorDetection, RoadObjectDetection, BoxCoordinateNormalizer, ApproachingInitializer, AreaCalculator, MidpointCalculator, WidthAndHeihtCalculator, Recorder, ImageWriter, ImageWriterForApproaching, VideoWriter, MOTWriter
+from pipedet.solver.hooks import MirrorDetection, RoadObjectDetection, BoxCoordinateNormalizer, ApproachingInitializer, HorizontalMovementCounter, AreaCalculator, MidpointCalculator, WidthAndHeihtCalculator, Recorder, ImageWriter, ImageWriterForApproaching, VideoWriter, MOTWriter
 from pipedet.structure.large_image import LargeImage
 
 _root_mirror_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/trimed/20201016_001/frames_png"
@@ -54,13 +54,14 @@ class TestIoUTracker(unittest.TestCase):
             RoadObjectDetection(score_thre = 0.2),
             BoxCoordinateNormalizer(),
             ApproachingInitializer(),
-            AreaCalculator(),
-            # MidpointCalculator(),
+            # HorizontalMovementCounter(right_trend_is_approaching=True),
+            # AreaCalculator(),
+            MidpointCalculator(),
             # WidthAndHeihtCalculator(),
             Recorder(),
             ImageWriter(root_output_images=_root_road_object_output_images),
             ImageWriterForApproaching(root_output_images=_root_road_object_output_approaching_images),
-            VideoWriter(root_output_video=_root_road_object_output_video),
+            # VideoWriter(root_output_video=_root_road_object_output_video),
             MOTWriter(root_output_mot=_root_road_object_output_mot)
         ]
         tracker.register_hooks(hooks)

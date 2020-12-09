@@ -7,8 +7,10 @@ RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 RUN apt-get update -y
 RUN apt-get install -y cmake
 RUN apt-get install -y gcc g++
+RUN apt-get install -y ffmpeg x264 libx264-dev
 USER appuser
 WORKDIR /home/appuser
+
 
 ENV PATH="/home/appuser/.local/bin:${PATH}"
 RUN wget https://bootstrap.pypa.io/get-pip.py && \

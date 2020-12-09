@@ -101,12 +101,13 @@ class HorizontalMovementCounter(HookBase):
     """
     """
 
-    def __init__(self):
+    def __init__(self, right_trend_is_approaching: bool=True):
+        self.right_trend_is_approaching = right_trend_is_approaching
+        self.buffer_midpoint = {}
         self.buffer_right_move_num = {}
 
     def before_track(self):
         pass
-
 
     def after_step(self):
         """
@@ -116,19 +117,34 @@ class HorizontalMovementCounter(HookBase):
 
         bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
 
-        self.tracker.state_approaching = []
-
+        cnt = 0
         for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
-            midpoint = ((bbox[2]-bbox[0]) // 2, bbox[3])
-            if track_id in self.buffer_midpoint: # existing track
-                if self.buffer_midpoint[track_id][1] - midpoint[1] < 0: # approaching
-                    self.tracker.state_approaching.append(True)
-                else: # not approaching
-                    self.tracker.state_approaching.append(False)
-            else: # new track
-                self.tracker.state_approaching.append(False)
-            self.buffer_midpoint[track_id] = midpoint
+            midpoint = ((bbox[2]-bbox[0]) / 2, bbox[3])
+            if track_id in self.buffer_right_move_num: # existing track
+                if self.buffer_midpoint[track_id][0] - midpoint[0] < -0.01: # move right
+                    self.buffer_right_move_num[track_id] += 1
+                    self.tracker.logger.debug(f"\n track id: {track_id} moved right {self.buffer_midpoint[track_id][0] - midpoint[0]}, and right_move_num {self.buffer_right_move_num[track_id]}.")
+                elif self.buffer_midpoint[track_id][0] - midpoint[0] > 0.01: # move left
+                    self.buffer_right_move_num[track_id] -= 1
+                    self.tracker.logger.debug(f"\n track id: {track_id} moved left {self.buffer_midpoint[track_id][0] - midpoint[0]}, and right_move_num {self.buffer_right_move_num[track_id]}.")
+                else: # same horizontal position
+                    pass 
 
+                if self.right_trend_is_approaching:
+                    if self.buffer_right_move_num[track_id] > 0:
+                        self.tracker.state_approaching[cnt] = True
+                    else:
+                        self.tracker.state_approaching[cnt] = False
+                else:
+                    if self.buffer_right_move_num[track_id] < 0:
+                        self.tracker.state_approaching[cnt] = True
+                    else:
+                        self.tracker.state_approaching[cnt] = False
+            else: # new track
+                self.buffer_right_move_num[track_id] = 0
+                self.tracker.state_approaching[cnt] = False
+            self.buffer_midpoint[track_id] = midpoint
+            cnt += 1
 
 class AreaCalculator(HookBase):
     """
@@ -148,7 +164,7 @@ class AreaCalculator(HookBase):
         self.height = self.tracker.data.height
 
         bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
-
+        assert len(bboxes) == len(self.tracker.state_track_ids)
         cnt = 0
         for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
             area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
@@ -183,7 +199,7 @@ class MidpointCalculator(HookBase):
 
         cnt = 0
         for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
-            midpoint = ((bbox[2]-bbox[0]) // 2, bbox[3])
+            midpoint = ((bbox[2]-bbox[0]) / 2, bbox[3])
             if track_id in self.buffer_midpoint: # existing track
                 if self.buffer_midpoint[track_id][1] - midpoint[1] < 0: # approaching
                     self.tracker.state_approaching[cnt] = True
@@ -193,19 +209,6 @@ class MidpointCalculator(HookBase):
                 self.tracker.state_approaching[cnt] = False
             self.buffer_midpoint[track_id] = midpoint
             cnt += 1
-
-# class MidpointUpdater(HookBase):
-
-#     def after_step(self):
-
-#         self.width = self.tracker.data.width
-#         self.height = self.tracker.data.height
-
-#         bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
-
-#         for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
-#             midpoint = ((bbox[2]-bbox[0]) // 2, bbox[3])
-#             self.buffer_midpoint[track_id] = midpoint
 
 
 class WidthAndHeihtCalculator(HookBase):
@@ -287,24 +290,25 @@ class VideoWriter(HookBase):
     """
     def __init__(self, root_output_video: str):
         self.root_output_video = root_output_video
-        fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-        frame_rate = 30 # TODO: make cofigureble
+        fmt = cv2.VideoWriter_fourcc(*'H264')
+        # fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        frame_rate = 30.0 # TODO: make cofigureble
         self.size = (512, 512)
         self.video_writer = cv2.VideoWriter(os.path.join(self.root_output_video, 'tracked.mp4'), fmt, frame_rate, self.size)
 
     def after_step(self):
         frame = self.tracker.record.image_drawn
-        BLACK = (0, 0, 0)
         width = self.tracker.record.width
         height = self.tracker.record.height
-        padded_frame = np.full((*self.size, 3), BLACK, dtype=np.uint8)
+        padded_frame = np.full((*self.size, 3), 0, dtype=np.uint8)
         x_c = (self.size[0] - width) // 2
         y_c = (self.size[1] - height) // 2
-        padded_frame[y_c:y_c+height, x_c:x_c+width] = frame
-        self.video_writer.write(frame)
+        # padded_frame[y_c:y_c+height, x_c:x_c+width] = frame
+        self.video_writer.write(padded_frame)
 
     def after_track(self):
         self.video_writer.release()
+        assert os.path.isfile(os.path.join(self.root_output_video, 'tracked.mp4')), "mp4 file was not generated."
 
 class MOTReader(HookBase):
     def __init__(self, path_mot_txt: str):

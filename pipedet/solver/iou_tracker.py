@@ -105,7 +105,7 @@ class TrackerBase:
         self.end_iter = self.loader.frame_num_end
         # self.iter = self.start_iter
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
         self.logger.info("Starting tracking from iteration {}".format(self.start_iter))
 
         try:
