@@ -310,7 +310,8 @@ class VideoWriter(HookBase):
         # fmt = cv2.VideoWriter_fourcc(*'XVID')
         # fmt = cv2.VideoWriter_fourcc(*"x264")
         # fmt = cv2.VideoWriter_fourcc(*"MPEG")
-        fmt = cv2.VideoWriter_fourcc(*'H264')
+        # fmt = cv2.VideoWriter_fourcc(*'H264')
+        fmt = cv2.VideoWriter_fourcc(*'avc1') # for ubuntu
         # fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
         # fmt = cv2.CAP_FFMPEG
         frame_rate = 30.0 # TODO: make cofigureble
@@ -329,7 +330,7 @@ class VideoWriter(HookBase):
 
     def after_track(self):
         self.video_writer.release()
-        assert os.path.isfile(os.path.join(self.root_output_video, 'tracked.avi')), "mp4 file was not generated."
+        assert os.path.isfile(os.path.join(self.root_output_video, 'tracked.mp4')), "mp4 file was not generated."
 
 class MOTReader(HookBase):
     def __init__(self, path_mot_txt: str):

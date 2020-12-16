@@ -12,7 +12,7 @@ import cv2
 
 from .image_encoder import cv2_to_base64_string
 from ..common.box_suppression import suppress_crop_locations, non_max_suppression_fast
-from ..common.super_resolution import super_resolution
+# from ..common.super_resolution import super_resolution
 
 _RawBoxType = Union[List[Union[float, int]], np.ndarray]
 
