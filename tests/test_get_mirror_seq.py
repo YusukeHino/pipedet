@@ -11,12 +11,19 @@ from pipedet.solver.hooks import MirrorDetection, Recorder, ImageWriter, MOTWrit
 from pipedet.structure.large_image import LargeImage
 from pipedet.solver.get_mirror_seq import MirrorSeq
 
-_root_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/trimed/20201016_001/frames_png"
+
+
+# -- for 20201016_001 -- #
+# _root_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/trimed/20201016_001/frames_png"
+# _root_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_crop_results/mirror_seq_images"
+# _input_mot_txt = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/gt.txt"
+# _target_tracking_id = 1
+
+# -- for 20200918_002 -- #
+_root_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/trimed/20200918_002/frames_png"
 _root_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_crop_results/mirror_seq_images"
-# _root_output_images_w_road_objects = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_crop_results/w_road_objects"
 _input_mot_txt = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/gt.txt"
-# _input_road_objects_mot_txt = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq_sr/20200918_038/road_objects_tracked/gt.txt"
-_target_tracking_id = 1
+_target_tracking_id = 3 # The right mirror. There are two mirrors(1 and 3) in the right side.
 
 class TestMirrorSeq(unittest.TestCase):
     def test_load_w_mot_txt(self):

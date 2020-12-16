@@ -306,8 +306,13 @@ class VideoWriter(HookBase):
     """
     def __init__(self, root_output_video: str):
         self.root_output_video = root_output_video
+        assert os.path.isdir(self.root_output_video)
+        # fmt = cv2.VideoWriter_fourcc(*'XVID')
+        # fmt = cv2.VideoWriter_fourcc(*"x264")
+        # fmt = cv2.VideoWriter_fourcc(*"MPEG")
         fmt = cv2.VideoWriter_fourcc(*'H264')
         # fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        # fmt = cv2.CAP_FFMPEG
         frame_rate = 30.0 # TODO: make cofigureble
         self.size = (512, 512)
         self.video_writer = cv2.VideoWriter(os.path.join(self.root_output_video, 'tracked.mp4'), fmt, frame_rate, self.size)
@@ -319,12 +324,12 @@ class VideoWriter(HookBase):
         padded_frame = np.full((*self.size, 3), 0, dtype=np.uint8)
         x_c = (self.size[0] - width) // 2
         y_c = (self.size[1] - height) // 2
-        # padded_frame[y_c:y_c+height, x_c:x_c+width] = frame
+        padded_frame[y_c:y_c+height, x_c:x_c+width] = frame
         self.video_writer.write(padded_frame)
 
     def after_track(self):
         self.video_writer.release()
-        assert os.path.isfile(os.path.join(self.root_output_video, 'tracked.mp4')), "mp4 file was not generated."
+        assert os.path.isfile(os.path.join(self.root_output_video, 'tracked.avi')), "mp4 file was not generated."
 
 class MOTReader(HookBase):
     def __init__(self, path_mot_txt: str):
