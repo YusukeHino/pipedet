@@ -300,37 +300,64 @@ class ImageWriterForApproaching(HookBase):
         cv2.imwrite(self.output_image_path, self.tracker.record.image_drawn_as_approaching)
         assert os.path.exists(self.output_image_path)
 
-class VideoWriter(HookBase):
+class _VideoWriterBase(HookBase):
     """
     # TODO: this is not effective.
     """
-    def __init__(self, root_output_video: str):
+    def __init__(self, root_output_video: str, fps: float, do_resize: bool=False, size: Tuple[int, int]=(512,512), out_filename: str='tracked.mp4'):
         self.root_output_video = root_output_video
         assert os.path.isdir(self.root_output_video)
+        self.out_filename = out_filename
+        self.do_resize = do_resize
         # fmt = cv2.VideoWriter_fourcc(*'XVID')
         # fmt = cv2.VideoWriter_fourcc(*"x264")
         # fmt = cv2.VideoWriter_fourcc(*"MPEG")
         # fmt = cv2.VideoWriter_fourcc(*'H264')
-        fmt = cv2.VideoWriter_fourcc(*'avc1') # for ubuntu
-        # fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        # fmt = cv2.VideoWriter_fourcc('mp4v') # for macOS and mp4
         # fmt = cv2.CAP_FFMPEG
-        frame_rate = 30.0 # TODO: make cofigureble
-        self.size = (512, 512)
-        self.video_writer = cv2.VideoWriter(os.path.join(self.root_output_video, 'tracked.mp4'), fmt, frame_rate, self.size)
+        fmt = cv2.VideoWriter_fourcc(*'avc1') # for ubuntu 18.04 and mp4
+        frame_rate = fps
+        self.size = size
+        self.video_writer = cv2.VideoWriter(os.path.join(self.root_output_video, self.out_filename), fmt, frame_rate, self.size)
 
     def after_step(self):
-        frame = self.tracker.record.image_drawn
-        width = self.tracker.record.width
-        height = self.tracker.record.height
-        padded_frame = np.full((*self.size, 3), 0, dtype=np.uint8)
-        x_c = (self.size[0] - width) // 2
-        y_c = (self.size[1] - height) // 2
-        padded_frame[y_c:y_c+height, x_c:x_c+width] = frame
-        self.video_writer.write(padded_frame)
+        
+        frame, width, height = self.get_frame_n_width_height()
+        if self.do_resize:
+            resized_frame = cv2.resize(frame, self.size)
+            self.video_writer.write(resized_frame)
+        else: # padding
+            padded_frame = np.full((*self.size, 3), 0, dtype=np.uint8)
+            x_c = (self.size[0] - width) // 2
+            y_c = (self.size[1] - height) // 2
+            padded_frame[y_c:y_c+height, x_c:x_c+width] = frame
+            self.video_writer.write(padded_frame)
+
+    def get_frame_n_width_height(self):
+        """
+        returns:
+            frame (np.Ndarray)
+            width: int
+            height: int
+        """
+        raise NotImplementedError
 
     def after_track(self):
         self.video_writer.release()
-        assert os.path.isfile(os.path.join(self.root_output_video, 'tracked.mp4')), "mp4 file was not generated."
+        assert os.path.isfile(os.path.join(self.root_output_video, self.out_filename)), "mp4 file was not generated."
+
+class VideoWriterForTracking(_VideoWriterBase):
+    def get_frame_n_width_height(self):
+        return self.tracker.record.image_drawn, self.tracker.record.width, self.tracker.record.height
+
+class VideoWriterForApproaching(_VideoWriterBase):
+    def __init__(self, *args, **kwargs):
+        if not ('out_filename' in kwargs):
+            kwargs['out_filename'] = 'approaching.mp4'
+        super().__init__(*args, **kwargs)
+
+    def get_frame_n_width_height(self):
+        return self.tracker.record.image_drawn_as_approaching, self.tracker.record.width, self.tracker.record.height
 
 class MOTReader(HookBase):
     def __init__(self, path_mot_txt: str):
