@@ -112,6 +112,77 @@ class ApproachingInitializer(HookBase):
     def after_step(self):
         self.tracker.state_approaching = [False] * len(self.tracker.state_track_ids)
 
+class FeatureMatcher(HookBase):
+    def __init__(self, min_hessian: int=400):
+        """
+        TODO: Is min_hessian meaningful?
+        """
+        self.min_hessian = min_hessian
+        self.detector = cv2.ORB_create()
+        self.size = (512, 512)
+
+    def before_track(self):
+        self.previous_frame = None
+
+    def after_step(self):
+        frame = self.tracker.data.image
+        frame = cv2.resize(frame, self.size)
+        keypoints2, descriptors2 = self.detector.detectAndCompute(frame, None)
+        if self.previous_frame is not None: # not first loop
+            keypoints1, descriptors1 = self.buffer_keypoints_n_descriptors
+            assert descriptors1 is not None
+            keypoints2, descriptors2 = self.remove_out_of_center(keypoints2, descriptors2, self.size)
+            assert descriptors2 is not None
+            # create BFMatcher object
+            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+            # Match descriptors.
+            try:
+                good_feature_matches = bf.match(descriptors1,descriptors2)
+            except cv2.error as err:
+                self.tracker.logger.debug(f"Reagarding to matching of features:\n{err}")
+                good_feature_matches = []
+            # Sort them in the order of their distance.
+            good_feature_matches = sorted(good_feature_matches, key = lambda x:x.distance)
+            good_feature_matches = good_feature_matches[:15]
+            self.tracker.state_keypoints_n_descriptors = ((keypoints1, descriptors1), (keypoints2, descriptors2))
+            self.tracker.state_good_feature_matches = good_feature_matches
+
+        self.previous_frame = frame
+        self.buffer_keypoints_n_descriptors = (keypoints2, descriptors2)
+
+    def remove_out_of_center(self, keypoints, descriptors, original_size):
+        ret_keypoints = []
+        ret_indxs_of_descriptor = np.array([], dtype=np.int8)
+        ret_descriptors = np.array([])
+
+        for cnt, (keypoint, descriptor) in enumerate(zip(keypoints, descriptors)):
+            if self.see_if_is_located_in_center(keypoint.pt, original_size):
+                ret_keypoints.append(keypoint)
+                ret_indxs_of_descriptor = np.append(ret_indxs_of_descriptor, cnt)
+        if len(ret_indxs_of_descriptor):
+            ret_descriptors = descriptors[ret_indxs_of_descriptor]
+        return ret_keypoints, ret_descriptors
+    
+    def see_if_is_located_in_center(self, coordinate, size):
+        """
+        Args:
+            coordinate: Tuple[int, int]
+            size: Tuple[int, int]
+                width, height
+        Returns:
+            bool
+        """
+        width, height = size
+        x, y = coordinate
+        if x <= 1/4 * width:
+            return False
+        if x >= 3/4 * width:
+            return False
+        if y <= 1/4 * height:
+            return False
+        if y >= 3/4 * height:
+            return False
+        return True
     
 class HorizontalMovementCounter(HookBase):
     """
@@ -272,6 +343,9 @@ class Recorder(HookBase):
         record.bboxes = self.tracker.state_boxes
         if hasattr(self.tracker, 'state_approaching'):
             record.approaching = self.tracker.state_approaching
+        if hasattr(self.tracker, 'state_good_feature_matches'):
+            record.good_feature_matches = self.tracker.state_good_feature_matches
+            record.keypoints_n_descriptors = self.tracker.state_keypoints_n_descriptors
         self.tracker.record = record
 
 
@@ -302,7 +376,6 @@ class ImageWriterForApproaching(HookBase):
 
 class _VideoWriterBase(HookBase):
     """
-    # TODO: this is not effective.
     """
     def __init__(self, root_output_video: str, fps: float, do_resize: bool=False, size: Tuple[int, int]=(512,512), out_filename: str='tracked.mp4'):
         self.root_output_video = root_output_video
@@ -358,6 +431,30 @@ class VideoWriterForApproaching(_VideoWriterBase):
 
     def get_frame_n_width_height(self):
         return self.tracker.record.image_drawn_as_approaching, self.tracker.record.width, self.tracker.record.height
+
+class VideoWriterForMatching(_VideoWriterBase):
+    def __init__(self, *args, **kwargs):
+        if not ('out_filename' in kwargs):
+            kwargs['out_filename'] = 'feature_matching.mp4'
+        super().__init__(*args, **kwargs)
+
+    def after_step(self):
+        self.data = self.tracker.record
+        super().after_step()
+        self.previous_data = self.tracker.record
+            
+    def get_frame_n_width_height(self):
+        if not hasattr(self.tracker.record, 'good_feature_matches'): # first loop
+            return np.full((*self.size, 3), 0, dtype=np.uint8), self.size[0], self.size[1]
+        # not first loop
+        resized_frame = cv2.resize(self.data.image_drawn, (512, 512)) #TODO: get size by somehow
+        resized_previous_frame = cv2.resize(self.previous_data.image_drawn, (512, 512)) #TODO: get size by somehow
+        # img_matches = np.empty((*self.size, 3), dtype=np.uint8) # This is bad.
+        img_matches = np.empty((max(resized_previous_frame.shape[0], resized_frame.shape[0]), resized_previous_frame.shape[1]+resized_frame.shape[1], 3), dtype=np.uint8)
+        keypoints1 = self.tracker.record.keypoints_n_descriptors[0][0]
+        keypoints2 = self.tracker.record.keypoints_n_descriptors[1][0]
+        cv2.drawMatches(resized_previous_frame, keypoints1, resized_frame, keypoints2, self.tracker.record.good_feature_matches, img_matches, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+        return img_matches, self.size[0], self.size[1]
 
 class MOTReader(HookBase):
     def __init__(self, path_mot_txt: str):
