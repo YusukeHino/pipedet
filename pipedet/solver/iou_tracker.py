@@ -109,7 +109,7 @@ class TrackerBase:
 
         try:
             self.before_track()
-            for self.iter in range(self.start_iter, self.end_iter):
+            for self.iter in range(self.start_iter, self.end_iter+1):
                 self.before_step()
                 self.run_step()
                 self.after_step()
@@ -238,6 +238,13 @@ class IoUTracker(TrackerBase):
 
         return float(s_intsec)/(s_a + s_b -s_intsec)
 
-class MOTReadingAsTracker(TrackerBase):
+class NullTracker(TrackerBase):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__()
+        self.state_boxes: List[List[Union[int, float]]] = []
+        self.state_track_ids: List[int] = []
+        self.state_ages: List[int] = []
+        self.state_detections: List[List[Union[int, float]]] = []
+
     def run_step(self):
         pass
