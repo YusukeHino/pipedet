@@ -90,7 +90,7 @@ class MOTReader(HookBase):
             bbox[0] -= 1.
             bbox[1] -= 1.
             bbox = [bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]]
-            bbox = [int(x) for x in bbox]
+            bbox = [float(x) for x in bbox]
             class_confidence = float(listed_line[6])
             self.tracker.state_boxes.append(bbox)
             self.tracker.state_track_ids.append(int(listed_line[1]))
@@ -170,12 +170,26 @@ class FeatureMatcher(HookBase):
     def previous_keypoints_n_descriptors(self):
         return self._previous_keypoints_n_descriptors
 
+    @property
+    def previous_boxes(self):
+        return self._previous_boxes
+
+    @property
+    def previous_size(self):
+        return self._previous_size
+
     def before_track(self):
         self.tracker.matching_interval = self.interval
         assert self.interval > 0
         self.buffer_frames = queue.Queue()
         for i in range(self.interval):
             self.buffer_frames.put_nowait(None)
+        self.buffer_boxes = queue.Queue()
+        for i in range(self.interval):
+            self.buffer_boxes.put_nowait(None)
+        self.buffer_sizes = queue.Queue()
+        for i in range(self.interval):
+            self.buffer_sizes.put_nowait(None)
         self.buffer_keypoints_n_descriptors = queue.Queue()
         for i in range(self.interval):
             self.buffer_keypoints_n_descriptors.put_nowait(None)
@@ -183,18 +197,20 @@ class FeatureMatcher(HookBase):
 
     def after_step(self):
         self._previous_frame = self.buffer_frames.get_nowait()
+        self._previous_boxes = self.buffer_boxes.get_nowait()
+        self._previous_size = self.buffer_sizes.get_nowait()
         self._previous_keypoints_n_descriptors = self.buffer_keypoints_n_descriptors.get_nowait()
         frame = self.tracker.data.image
         frame = cv2.resize(frame, self.size)
         keypoints2, descriptors2 = self.detector.detectAndCompute(frame, None)
+        keypoints2, descriptors2 = self.remove_outside_brim_with_ellipse(keypoints2, descriptors2, self.size)
+        assert descriptors2 is not None
+        keypoints2, descriptors2 = self.remove_inside_bboxes(keypoints2, descriptors2, self.size)
+        assert descriptors2 is not None
         if self.previous_frame is not None: # not first loop
             assert self.previous_keypoints_n_descriptors is not None
             keypoints1, descriptors1 = self.previous_keypoints_n_descriptors
             assert descriptors1 is not None
-            keypoints2, descriptors2 = self.remove_outside_brim_with_ellipse(keypoints2, descriptors2, self.size)
-            assert descriptors2 is not None
-            keypoints2, descriptors2 = self.remove_inside_bboxes(keypoints2, descriptors2, self.size)
-            assert descriptors2 is not None
             # create BFMatcher object
             bf = cv2.BFMatcher(cv2.NORM_HAMMING2, crossCheck=True)
             # Match descriptors.
@@ -207,7 +223,7 @@ class FeatureMatcher(HookBase):
             good_feature_matches = sorted(good_feature_matches, key = lambda x:x.distance)
             # good_feature_matches = good_feature_matches[:20]
 
-            MIN_MATCH_COUNT = 10
+            MIN_MATCH_COUNT = 6
             if len(good_feature_matches)>MIN_MATCH_COUNT:
                 src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in good_feature_matches ]).reshape(-1,1,2)
                 dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in good_feature_matches ]).reshape(-1,1,2)
@@ -221,9 +237,8 @@ class FeatureMatcher(HookBase):
                 self.tracker.state_quadruple_of_points = dst
                 self.tracker.state_matchesMask = matchesMask
                 quadruples_of_points_for_boxes = []
-                self.width = self.tracker.data.width
-                self.height = self.tracker.data.height
-                bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+
+                bboxes = BoxMode.convert_boxes(self.previous_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.previous_size[0], height=self.previous_size[1])
                 for bbox in bboxes:
                     x1, y1, x2, y2 = (rel*self.size[0] if cnt%2==0 else rel*self.size[1] for cnt,rel in enumerate(bbox))
                     pts_for_box = np.float32([[x1,y1],[x1,y2],[x2,y2],[x2,y1]]).reshape(-1,1,2)
@@ -234,10 +249,13 @@ class FeatureMatcher(HookBase):
                 self.tracker.logger.debug("Not enough matches are found - %d/%d" % (len(good_feature_matches), MIN_MATCH_COUNT))
                 matchesMask = None
                 self.tracker.state_matchesMask = matchesMask
+                self.tracker.state_quadruple_of_points = None
 
             self.tracker.state_keypoints_n_descriptors = ((keypoints1, descriptors1), (keypoints2, descriptors2))
             self.tracker.state_good_feature_matches = good_feature_matches
 
+        self.buffer_boxes.put_nowait(self.tracker.state_boxes)
+        self.buffer_sizes.put_nowait((self.tracker.data.width, self.tracker.data.height))
         self.buffer_frames.put_nowait(frame)
         self.buffer_keypoints_n_descriptors.put_nowait((keypoints2, descriptors2))
 
@@ -278,7 +296,7 @@ class FeatureMatcher(HookBase):
         self.height = self.tracker.data.height
         bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
         for bbox in bboxes:
-            ret_keypoints, ret_descriptors = self.remove_inside_bbox(keypoints, descriptors, original_size, bbox)
+            ret_keypoints, ret_descriptors = self.remove_inside_bbox(ret_keypoints, ret_descriptors, original_size, bbox)
         return ret_keypoints, ret_descriptors
 
     def remove_inside_bbox(self, keypoints, descriptors, original_size, bbox):
@@ -604,11 +622,12 @@ class VideoWriterForMatching(_VideoWriterBase):
         img_matches = np.empty((max(resized_previous_frame.shape[0], resized_frame.shape[0]), resized_previous_frame.shape[1]+resized_frame.shape[1], 3), dtype=np.uint8)
         keypoints1 = self.tracker.record.keypoints_n_descriptors[0][0]
         keypoints2 = self.tracker.record.keypoints_n_descriptors[1][0]
-        dst = self.tracker.state_quadruple_of_points
-        resized_frame = cv2.polylines(resized_frame, [np.int32(dst)],True,255,3, cv2.LINE_AA)
-        dsts_for_boxes = self.tracker.state_quadruples_of_points_for_boxes
-        for dst_for_box in dsts_for_boxes:
-            resized_frame = cv2.polylines(resized_frame, [np.int32(dst_for_box)],True,255,3, cv2.LINE_AA)
+        if self.tracker.state_quadruple_of_points is not None:
+            dst = self.tracker.state_quadruple_of_points
+            resized_frame = cv2.polylines(resized_frame, [np.int32(dst)],True,255,3, cv2.LINE_AA)
+            dsts_for_boxes = self.tracker.state_quadruples_of_points_for_boxes
+            for dst_for_box in dsts_for_boxes:
+                resized_frame = cv2.polylines(resized_frame, [np.int32(dst_for_box)],True,255,3, cv2.LINE_AA)
         draw_params = dict(matchColor = (0,255,0), # draw matches in green color
                 singlePointColor = None,
                 matchesMask = self.tracker.state_matchesMask, # draw only inliers

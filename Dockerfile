@@ -47,3 +47,15 @@ RUN python -m pip install --user grpcio-tools
 # RUN cp /home/appuser/opencv_build/lib/python3/cv2.cpython-37m-x86_64-linux-gnu.so /home/appuser/.local/lib/python3.7/site-packages
 
 CMD ["/bin/bash"]
+
+# Followings are from https://symfoware.blog.fc2.com/blog-entry-2345.html
+RUN sudo apt autoremove libopencv-dev python-opencv
+
+RUN wget --no-check-certificate https://raw.githubusercontent.com/milq/milq/master/scripts/bash/install-opencv.sh
+
+#invalid
+RUN sed -i -e "s/OPENCV_VERSION='4.2.0'/OPENCV_VERSION='4.1.0'/g" ./install-opencv.sh
+
+RUN chmod +x install-opencv.sh
+
+RUN ./install-opencv.sh

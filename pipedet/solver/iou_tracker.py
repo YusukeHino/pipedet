@@ -129,6 +129,7 @@ class TrackerBase:
 
     def before_step(self):
         self._data = next(self.loader_iter)
+        self._data.image_num = self.iter
         for h in self._hooks:
             h.before_step()
 

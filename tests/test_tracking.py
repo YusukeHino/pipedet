@@ -25,11 +25,13 @@ from pipedet.structure.large_image import LargeImage
 # _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
 
 # -- for 20200918_038 --#
-# _root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_038/frames"
-# _root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
-# _root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
-# _root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
-# _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
+_root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_038/frames"
+_root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
+_root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
+_root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
+_root_road_object_output_approaching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_approaching"
+_root_road_object_output_feature_matching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_feature_matching"
+_root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
 
 # -- for 20200918_002 --#
 # _root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_002/mirror_2/frames"
@@ -41,14 +43,14 @@ from pipedet.structure.large_image import LargeImage
 # _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
 
 # -- for 20200918_024 --#
-_root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames"
-_path_input_mot_txt = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/gt.txt"
-_root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
-_root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
-_root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
-_root_road_object_output_approaching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_approaching"
-_root_road_object_output_feature_matching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_feature_matching"
-_root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
+# _root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames"
+# _path_input_mot_txt = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/gt.txt"
+# _root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
+# _root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
+# _root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
+# _root_road_object_output_approaching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_approaching"
+# _root_road_object_output_feature_matching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_feature_matching"
+# _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
 
 logging.basicConfig(level=logging.INFO)
 class TestTrackingFrameLoader(unittest.TestCase):
@@ -82,7 +84,7 @@ class TestIoUTracker(unittest.TestCase):
             RoadObjectDetection(score_thre = 0.17),
             BoxCoordinateNormalizer(),
             ApproachingInitializer(),
-            FeatureMatcher(),
+            FeatureMatcher(interval=30),
             # HorizontalMovementCounter(right_trend_is_approaching=True),
             # AreaCalculator(),
             MidpointCalculator(),
@@ -107,7 +109,7 @@ class TestNullTracker(unittest.TestCase):
             MOTReader(path_mot_txt=_path_input_mot_txt),
             BoxCoordinateNormalizer(),
             ApproachingInitializer(),
-            FeatureMatcher(interval=36),
+            FeatureMatcher(interval=30),
             # HorizontalMovementCounter(right_trend_is_approaching=True),
             # AreaCalculator(),
             MidpointCalculator(),

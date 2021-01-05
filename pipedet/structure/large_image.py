@@ -247,6 +247,9 @@ class Image():
                 else:
                     track_id = None
                 self.depict_bbox(image_copy, bbox, class_confidence, track_id)
+        if hasattr(self, "image_num"):
+            cv2.putText(image_copy, str(self.image_num), (int(17/20*self.width), int(19/20*self.height)), cv2.FONT_HERSHEY_SIMPLEX, self.depict_param[4], (255,255,255), self.depict_param[3], cv2.LINE_AA)
+            
         return image_copy
     
     @property
@@ -268,6 +271,8 @@ class Image():
                 else:
                     raise AttributeError
                 self.depict_bbox_as_approaching(image_copy, bbox, track_id, approaching)
+            if hasattr(self, "image_num"):
+                cv2.putText(image_copy, str(self.image_num), (int(17/20*self.width), int(19/20*self.height)), cv2.FONT_HERSHEY_SIMPLEX, self.depict_param[4], (255,255,255), self.depict_param[3], cv2.LINE_AA)
         return image_copy
 
     def depict_bbox(self, image: np.ndarray, bbox: List[int], class_confidence: Optional[Tuple[float, float]]=None, track_id: Optional[int]=None, color: Optional[Tuple[int, int, int]]=None) -> None:

@@ -20,15 +20,15 @@ def abs_xywh_to_rel_xyxy(bbox, original_size):
 # _rel_bbox_latter_frame = abs_xywh_to_rel_xyxy(_bbox_latter_frame, _original_size_latter_frame)
 
 
-_path_former_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0041.png'
-_original_size_former_frame = (109, 145)
-_bbox_former_frame = [75.1,39.37,17.200000000000003,37.160000000000004]
-_rel_bbox_former_frame = abs_xywh_to_rel_xyxy(_bbox_former_frame, _original_size_former_frame)
+# _path_former_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0041.png'
+# _original_size_former_frame = (109, 145)
+# _bbox_former_frame = [75.1,39.37,17.200000000000003,37.160000000000004]
+# _rel_bbox_former_frame = abs_xywh_to_rel_xyxy(_bbox_former_frame, _original_size_former_frame)
 
-_path_latter_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0071.png'
-_original_size_latter_frame = (141, 192)
-_bbox_latter_frame = [90.0,66.71,21.200000000000003,48.43000000000001]
-_rel_bbox_latter_frame = abs_xywh_to_rel_xyxy(_bbox_latter_frame, _original_size_latter_frame)
+# _path_latter_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0071.png'
+# _original_size_latter_frame = (141, 192)
+# _bbox_latter_frame = [90.0,66.71,21.200000000000003,48.43000000000001]
+# _rel_bbox_latter_frame = abs_xywh_to_rel_xyxy(_bbox_latter_frame, _original_size_latter_frame)
 
 
 # _path_former_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0070.png'
@@ -42,15 +42,15 @@ _rel_bbox_latter_frame = abs_xywh_to_rel_xyxy(_bbox_latter_frame, _original_size
 # _rel_bbox_latter_frame = abs_xywh_to_rel_xyxy(_bbox_latter_frame, _original_size_latter_frame)
 
 
-# _path_former_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0070.png'
-# _original_size_former_frame = (140, 189)
-# _bbox_former_frame = [88.68,65.87,21.50999999999999,48.42999999999999]
-# _rel_bbox_former_frame = abs_xywh_to_rel_xyxy(_bbox_former_frame, _original_size_former_frame)
+_path_former_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0070.png'
+_original_size_former_frame = (140, 189)
+_bbox_former_frame = [88.68,65.87,21.50999999999999,48.42999999999999]
+_rel_bbox_former_frame = abs_xywh_to_rel_xyxy(_bbox_former_frame, _original_size_former_frame)
 
-# _path_latter_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0106.png'
-# _original_size_latter_frame = (174, 246)
-# _bbox_latter_frame = [97.91,110.67,27.340000000000003,62.730000000000004]
-# _rel_bbox_latter_frame = abs_xywh_to_rel_xyxy(_bbox_latter_frame, _original_size_latter_frame)
+_path_latter_frame = '/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_024/mirror_2/frames/0106.png'
+_original_size_latter_frame = (174, 246)
+_bbox_latter_frame = [97.91,110.67,27.340000000000003,62.730000000000004]
+_rel_bbox_latter_frame = abs_xywh_to_rel_xyxy(_bbox_latter_frame, _original_size_latter_frame)
 
 
 def see_if_is_located_in_center(coordinate, size):
