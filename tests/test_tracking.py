@@ -4,7 +4,7 @@ import logging
 
 from pipedet.data.image_loader import TrackingFrameLoader
 from pipedet.solver.iou_tracker import IoUTracker, NullTracker
-from pipedet.solver.hooks import MirrorDetection, RoadObjectDetection, MOTReader, BoxCoordinateNormalizer, ApproachingInitializer, FeatureMatcher, HorizontalMovementCounter, AreaCalculator, MidpointCalculator, WidthAndHeihtCalculator, Recorder, ImageWriter, ImageWriterForApproaching, VideoWriterForTracking, VideoWriterForApproaching, VideoWriterForMatching, MOTWriter
+from pipedet.solver.hooks import MirrorDetection, RoadObjectDetection, MOTReader, BoxCoordinateNormalizer, ApproachingInitializer, FeatureMatcher, TransformedMidpointCalculator, HorizontalMovementCounter, AreaCalculator, MidpointCalculator, WidthAndHeihtCalculator, Recorder, ImageWriter, ImageWriterForApproaching, VideoWriterForTracking, VideoWriterForApproaching, VideoWriterForMatching, MOTWriter
 from pipedet.structure.large_image import LargeImage
 
 # -- mir tracking for 20200918_002 --#
@@ -18,6 +18,18 @@ from pipedet.structure.large_image import LargeImage
 # _root_mirror_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/video_for_tracking"
 # _root_mirror_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/"
 
+# -- mir tracking for 20210120_001 --#
+# _root_mirror_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/trimed/20210120_001/frames_png"
+# _root_mirror_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/frames_for_tracking"
+# _root_mirror_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/video_for_tracking"
+# _root_mirror_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/"
+
+# -- mir tracking for 20210120_008 --#
+# _root_mirror_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/trimed/20210120_008/frames_png"
+# _root_mirror_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/frames_for_tracking"
+# _root_mirror_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/video_for_tracking"
+# _root_mirror_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/demo_tracking_result/"
+
 # _root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20201016_001/frames"
 # _root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
 # _root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
@@ -25,13 +37,13 @@ from pipedet.structure.large_image import LargeImage
 # _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
 
 # -- for 20200918_038 --#
-_root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_038/frames"
-_root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
-_root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
-_root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
-_root_road_object_output_approaching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_approaching"
-_root_road_object_output_feature_matching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_feature_matching"
-_root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
+# _root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_038/frames"
+# _root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
+# _root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
+# _root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
+# _root_road_object_output_approaching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_approaching"
+# _root_road_object_output_feature_matching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_feature_matching"
+# _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
 
 # -- for 20200918_002 --#
 # _root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20200918_002/mirror_2/frames"
@@ -51,6 +63,24 @@ _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/r
 # _root_road_object_output_approaching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_approaching"
 # _root_road_object_output_feature_matching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_feature_matching"
 # _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
+
+# -- for 20210120_001 --#
+# _root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20210120_001/mirror_1/frames"
+# _root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
+# _root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
+# _root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
+# _root_road_object_output_approaching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_approaching"
+# _root_road_object_output_feature_matching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_feature_matching"
+# _root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
+
+# -- for 20210120_008 --#
+_root_road_object_images = "/home/appuser/data/facing_via_mirror/3840_2160_30fps/mirror_seq/20210120_008/mirror_1/frames"
+_root_road_object_output_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_tracking"
+_root_road_object_output_approaching_images = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/frames_for_approaching"
+_root_road_object_output_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_tracking"
+_root_road_object_output_approaching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_approaching"
+_root_road_object_output_feature_matching_video = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/video_for_feature_matching"
+_root_road_object_output_mot = "/home/appuser/src/pipedet/tests/demo_for_lumix/ro_tracking_result/"
 
 logging.basicConfig(level=logging.INFO)
 class TestTrackingFrameLoader(unittest.TestCase):
@@ -85,9 +115,10 @@ class TestIoUTracker(unittest.TestCase):
             BoxCoordinateNormalizer(),
             ApproachingInitializer(),
             FeatureMatcher(interval=30),
+            TransformedMidpointCalculator(),
             # HorizontalMovementCounter(right_trend_is_approaching=True),
             # AreaCalculator(),
-            MidpointCalculator(),
+            # MidpointCalculator(),
             # WidthAndHeihtCalculator(),
             Recorder(),
             ImageWriter(root_output_images=_root_road_object_output_images),
@@ -110,9 +141,10 @@ class TestNullTracker(unittest.TestCase):
             BoxCoordinateNormalizer(),
             ApproachingInitializer(),
             FeatureMatcher(interval=30),
+            TransformedMidpointCalculator(),
             # HorizontalMovementCounter(right_trend_is_approaching=True),
             # AreaCalculator(),
-            MidpointCalculator(),
+            # MidpointCalculator(),
             # WidthAndHeihtCalculator(),
             Recorder(),
             ImageWriter(root_output_images=_root_road_object_output_images),

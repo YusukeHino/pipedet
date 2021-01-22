@@ -173,6 +173,10 @@ class FeatureMatcher(HookBase):
     @property
     def previous_boxes(self):
         return self._previous_boxes
+        
+    @property
+    def previous_track_ids(self):
+        return self._previous_track_ids
 
     @property
     def previous_size(self):
@@ -187,6 +191,9 @@ class FeatureMatcher(HookBase):
         self.buffer_boxes = queue.Queue()
         for i in range(self.interval):
             self.buffer_boxes.put_nowait(None)
+        self.buffer_track_ids = queue.Queue()
+        for i in range(self.interval):
+            self.buffer_track_ids.put_nowait(None)
         self.buffer_sizes = queue.Queue()
         for i in range(self.interval):
             self.buffer_sizes.put_nowait(None)
@@ -198,6 +205,7 @@ class FeatureMatcher(HookBase):
     def after_step(self):
         self._previous_frame = self.buffer_frames.get_nowait()
         self._previous_boxes = self.buffer_boxes.get_nowait()
+        self._previous_track_ids = self.buffer_track_ids.get_nowait()
         self._previous_size = self.buffer_sizes.get_nowait()
         self._previous_keypoints_n_descriptors = self.buffer_keypoints_n_descriptors.get_nowait()
         frame = self.tracker.data.image
@@ -234,6 +242,7 @@ class FeatureMatcher(HookBase):
                 height, width = self.size
                 pts = np.float32([ [0,0],[0,height-1],[width-1,height-1],[width-1,0] ]).reshape(-1,1,2)
                 dst = cv2.perspectiveTransform(pts,M)
+                # left-top, left-bottom, right-bottom, right-top
                 self.tracker.state_quadruple_of_points = dst
                 self.tracker.state_matchesMask = matchesMask
                 quadruples_of_points_for_boxes = []
@@ -245,6 +254,7 @@ class FeatureMatcher(HookBase):
                     dst_for_box = cv2.perspectiveTransform(pts_for_box,M)
                     quadruples_of_points_for_boxes.append(dst_for_box)
                 self.tracker.state_quadruples_of_points_for_boxes = quadruples_of_points_for_boxes
+                self.tracker.state_previous_track_ids = self.previous_track_ids
             else:
                 self.tracker.logger.debug("Not enough matches are found - %d/%d" % (len(good_feature_matches), MIN_MATCH_COUNT))
                 matchesMask = None
@@ -255,6 +265,7 @@ class FeatureMatcher(HookBase):
             self.tracker.state_good_feature_matches = good_feature_matches
 
         self.buffer_boxes.put_nowait(self.tracker.state_boxes)
+        self.buffer_track_ids.put_nowait(self.tracker.state_track_ids)
         self.buffer_sizes.put_nowait((self.tracker.data.width, self.tracker.data.height))
         self.buffer_frames.put_nowait(frame)
         self.buffer_keypoints_n_descriptors.put_nowait((keypoints2, descriptors2))
@@ -346,6 +357,42 @@ class FeatureMatcher(HookBase):
         if y/height > y2:
             return False
         return True
+
+class TransformedMidpointCalculator(HookBase):
+
+    def __init__(self):
+        self.buffer_midpoint = {}
+
+    def before_track(self):
+        self.tracker.state_approaching = []
+
+    def after_step(self):
+        """
+        """
+        self.width = self.tracker.data.width
+        self.height = self.tracker.data.height
+
+        bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+
+        if hasattr(self.tracker.record, 'good_feature_matches'): # not first loop
+            if True: # TODO: flag meaning effective transform matrix
+                for track_id, quadruples_of_points_for_box in zip(self.tracker.state_previous_track_ids, self.tracker.state_quadruples_of_points_for_boxes):
+                    rel_quadruples_of_points_for_box = quadruples_of_points_for_box / 512 # TODO: get size
+                    self.buffer_midpoint[track_id] = ((rel_quadruples_of_points_for_box[1][0][0] + rel_quadruples_of_points_for_box[2][0][0]) / 2, (rel_quadruples_of_points_for_box[1][0][1] + rel_quadruples_of_points_for_box[2][0][1]) / 2)
+                
+        cnt = 0
+        for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
+            midpoint = ((bbox[2]-bbox[0]) / 2, bbox[3])
+            if track_id in self.buffer_midpoint: # existing track
+                if self.buffer_midpoint[track_id][1] - midpoint[1] < 0: # approaching
+                    self.tracker.state_approaching[cnt] = True
+                else: # not approaching
+                    self.tracker.state_approaching[cnt] = False
+            else: # new track
+                self.tracker.state_approaching[cnt] = False
+            self.buffer_midpoint[track_id] = midpoint
+            cnt += 1
+
     
 class HorizontalMovementCounter(HookBase):
     """
@@ -623,7 +670,7 @@ class VideoWriterForMatching(_VideoWriterBase):
         keypoints1 = self.tracker.record.keypoints_n_descriptors[0][0]
         keypoints2 = self.tracker.record.keypoints_n_descriptors[1][0]
         if self.tracker.state_quadruple_of_points is not None:
-            dst = self.tracker.state_quadruple_of_points
+            dst = self.tracker.state_quadruple_of_points # abs
             resized_frame = cv2.polylines(resized_frame, [np.int32(dst)],True,255,3, cv2.LINE_AA)
             dsts_for_boxes = self.tracker.state_quadruples_of_points_for_boxes
             for dst_for_box in dsts_for_boxes:

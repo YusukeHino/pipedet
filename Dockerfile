@@ -59,3 +59,7 @@ RUN sed -i -e "s/OPENCV_VERSION='4.2.0'/OPENCV_VERSION='4.1.0'/g" ./install-open
 RUN chmod +x install-opencv.sh
 
 RUN ./install-opencv.sh
+
+RUN pip install --user tensorboard cython
+
+RUN pip install --user torch==1.5+cu101 torchvision==0.6+cu101 -f https://download.pytorch.org/whl/torch_stable.html
