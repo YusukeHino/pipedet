@@ -62,13 +62,13 @@ class MirrorSeq:
                         bbox = large_image.bboxes[obj_num]
                         cropped_mirror = large_image.get_crop(bbox).copy()
                         self.mapped_mirror_seq[frame_num] = LargeImage(cropped_mirror)
-        
-        frame_nums = list(self.mapped_mirror_seq.keys())
-        frame_nums.sort()
-        tmp = frame_nums[0] - 1
-        for frame_num_element in frame_nums:
-            assert tmp + 1 == frame_num_element
-            tmp = frame_num_element
+        if not len(self.mapped_mirror_seq) == 0:
+            frame_nums = list(self.mapped_mirror_seq.keys())
+            frame_nums.sort()
+            tmp = frame_nums[0] - 1
+            for frame_num_element in frame_nums:
+                assert tmp + 1 == frame_num_element
+                tmp = frame_num_element
 
     def get_road_objects_from_mot_txt(self, mot_txt_file: str):
         mapped_annotations = self.get_mapped_annotatons_from_mot_txt(mot_txt_file)

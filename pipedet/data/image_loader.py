@@ -52,6 +52,9 @@ class TrackingFrameLoader:
         self.frame_num_iter += 1
         return large_image
 
+    def __len__(self):
+        return len(self.full_paths_to_frame)
+
     @property
     def frame_num_start(self):
         if self._frame_num_start == -1:

@@ -153,7 +153,7 @@ class ApproachingInitializer(HookBase):
         self.tracker.state_approaching = [False] * len(self.tracker.state_track_ids)
 
 class FeatureMatcher(HookBase):
-    def __init__(self, min_hessian: int=400, interval:int=1):
+    def __init__(self, min_hessian: int=400, interval:int=1, box_remove_margin:float=0.):
         """
         TODO: Is min_hessian meaningful?
         """
@@ -161,6 +161,8 @@ class FeatureMatcher(HookBase):
         self.detector = cv2.ORB_create(nfeatures = 10000, edgeThreshold = 17, patchSize=17)
         self.size = (512, 512)
         self.interval = interval
+        self.box_remove_margin = box_remove_margin
+        self.count_keypoint = 0
         
     @property
     def previous_frame(self):
@@ -211,64 +213,90 @@ class FeatureMatcher(HookBase):
         frame = self.tracker.data.image
         frame = cv2.resize(frame, self.size)
         keypoints2, descriptors2 = self.detector.detectAndCompute(frame, None)
-        keypoints2, descriptors2 = self.remove_outside_brim_with_ellipse(keypoints2, descriptors2, self.size)
-        assert descriptors2 is not None
-        keypoints2, descriptors2 = self.remove_inside_bboxes(keypoints2, descriptors2, self.size)
-        assert descriptors2 is not None
-        if self.previous_frame is not None: # not first loop
-            assert self.previous_keypoints_n_descriptors is not None
-            keypoints1, descriptors1 = self.previous_keypoints_n_descriptors
-            assert descriptors1 is not None
-            # create BFMatcher object
-            bf = cv2.BFMatcher(cv2.NORM_HAMMING2, crossCheck=True)
-            # Match descriptors.
-            try:
-                good_feature_matches = bf.match(descriptors1,descriptors2)
-            except cv2.error as err:
-                self.tracker.logger.debug(f"Reagarding to matching of features:\n{err}")
-                good_feature_matches = []
-            # Sort them in the order of their distance.
-            good_feature_matches = sorted(good_feature_matches, key = lambda x:x.distance)
-            # good_feature_matches = good_feature_matches[:20]
-
-            MIN_MATCH_COUNT = 6
-            if len(good_feature_matches)>MIN_MATCH_COUNT:
-                src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in good_feature_matches ]).reshape(-1,1,2)
-                dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in good_feature_matches ]).reshape(-1,1,2)
-
-                M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
-                matchesMask = mask.ravel().tolist()
-
-                height, width = self.size
-                pts = np.float32([ [0,0],[0,height-1],[width-1,height-1],[width-1,0] ]).reshape(-1,1,2)
-                dst = cv2.perspectiveTransform(pts,M)
-                # left-top, left-bottom, right-bottom, right-top
-                self.tracker.state_quadruple_of_points = dst
-                self.tracker.state_matchesMask = matchesMask
-                quadruples_of_points_for_boxes = []
+        self.tracker.state_is_effective_feature_matching_n_homography = False
+        try:
+            keypoints2, descriptors2 = self.remove_outside_brim_with_ellipse(keypoints2, descriptors2, self.size)
+            assert descriptors2 is not None
+            keypoints2, descriptors2 = self.remove_inside_bboxes(keypoints2, descriptors2, self.size)
+            assert descriptors2 is not None
+        except TypeError as err:
+            self.tracker.state_is_effective_feature_matching_n_homography = False
+            self.tracker.logger.debug(f"{err}\n Keypoints and descriptors are not found.")
+            pass
+        else:
+            if self.previous_frame is not None: # not first 30 loop (or not fist 6 loop)
+                assert self.previous_keypoints_n_descriptors is not None
+                keypoints1, descriptors1 = self.previous_keypoints_n_descriptors
+                assert descriptors1 is not None
+                # create BFMatcher object
+                bf = cv2.BFMatcher(cv2.NORM_HAMMING2, crossCheck=True)
+                # Match descriptors.
+                try:
+                    good_feature_matches = bf.match(descriptors1,descriptors2)
+                except cv2.error as err:
+                    self.tracker.logger.debug(f"Reagarding to matching of features:\n{err}")
+                    good_feature_matches = []
+                # Sort them in the order of their distance.
+                good_feature_matches = sorted(good_feature_matches, key = lambda x:x.distance)
+                # good_feature_matches = good_feature_matches[:20]
 
                 bboxes = BoxMode.convert_boxes(self.previous_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.previous_size[0], height=self.previous_size[1])
-                for bbox in bboxes:
-                    x1, y1, x2, y2 = (rel*self.size[0] if cnt%2==0 else rel*self.size[1] for cnt,rel in enumerate(bbox))
-                    pts_for_box = np.float32([[x1,y1],[x1,y2],[x2,y2],[x2,y1]]).reshape(-1,1,2)
-                    dst_for_box = cv2.perspectiveTransform(pts_for_box,M)
-                    quadruples_of_points_for_boxes.append(dst_for_box)
-                self.tracker.state_quadruples_of_points_for_boxes = quadruples_of_points_for_boxes
-                self.tracker.state_previous_track_ids = self.previous_track_ids
-            else:
-                self.tracker.logger.debug("Not enough matches are found - %d/%d" % (len(good_feature_matches), MIN_MATCH_COUNT))
-                matchesMask = None
-                self.tracker.state_matchesMask = matchesMask
-                self.tracker.state_quadruple_of_points = None
+                MIN_MATCH_COUNT = 6
+                if len(good_feature_matches)>MIN_MATCH_COUNT:
+                    src_pts = np.float32([ keypoints1[m.queryIdx].pt for m in good_feature_matches ]).reshape(-1,1,2)
+                    dst_pts = np.float32([ keypoints2[m.trainIdx].pt for m in good_feature_matches ]).reshape(-1,1,2)
 
-            self.tracker.state_keypoints_n_descriptors = ((keypoints1, descriptors1), (keypoints2, descriptors2))
-            self.tracker.state_good_feature_matches = good_feature_matches
+                    M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+                    distance_to_identity_matrix = np.power((M-np.identity(3, dtype='float64')), 2).sum()
+                    self.tracker.logger.info(f'Distance to identity matrix: {distance_to_identity_matrix}')
 
-        self.buffer_boxes.put_nowait(self.tracker.state_boxes)
-        self.buffer_track_ids.put_nowait(self.tracker.state_track_ids)
-        self.buffer_sizes.put_nowait((self.tracker.data.width, self.tracker.data.height))
-        self.buffer_frames.put_nowait(frame)
-        self.buffer_keypoints_n_descriptors.put_nowait((keypoints2, descriptors2))
+                    if distance_to_identity_matrix >= 2000:
+                        self.tracker.state_is_effective_feature_matching_n_homography = False
+                        self.tracker.logger.info(f'Transformation matrix was ignored.')
+
+                    else:
+                        matchesMask = mask.ravel().tolist()
+
+                        height, width = self.size
+                        pts = np.float32([ [0,0],[0,height-1],[width-1,height-1],[width-1,0] ]).reshape(-1,1,2)
+                        dst = cv2.perspectiveTransform(pts,M)
+                        # left-top, left-bottom, right-bottom, right-top
+                        self.tracker.state_quadruple_of_points = dst
+                        self.tracker.state_matchesMask = matchesMask
+                        quadruples_of_points_for_boxes = []
+
+                        for bbox in bboxes:
+                            x1, y1, x2, y2 = (rel*self.size[0] if cnt%2==0 else rel*self.size[1] for cnt,rel in enumerate(bbox))
+                            pts_for_box = np.float32([[x1,y1],[x1,y2],[x2,y2],[x2,y1]]).reshape(-1,1,2)
+                            dst_for_box = cv2.perspectiveTransform(pts_for_box,M)
+                            quadruples_of_points_for_boxes.append(dst_for_box)
+                        self.tracker.state_quadruples_of_points_for_boxes = quadruples_of_points_for_boxes
+                        self.tracker.state_previous_track_ids = self.previous_track_ids
+                        self.tracker.state_is_effective_feature_matching_n_homography = True
+                else:
+                    self.tracker.logger.debug("Not enough matches are found - %d/%d" % (len(good_feature_matches), MIN_MATCH_COUNT))
+                    self.tracker.state_is_effective_feature_matching_n_homography = False
+
+                if not self.tracker.state_is_effective_feature_matching_n_homography:
+                    matchesMask = None
+                    self.tracker.state_matchesMask = matchesMask
+                    self.tracker.state_quadruple_of_points = None
+
+                # self.tracker.state_previous_rel_boxes = bboxes.deepcopy()
+                self.tracker.state_keypoints_n_descriptors = ((keypoints1, descriptors1), (keypoints2, descriptors2))
+                self.tracker.state_good_feature_matches = good_feature_matches
+
+            self.buffer_keypoints_n_descriptors.put_nowait((keypoints2, descriptors2))
+            self.count_keypoint += len(keypoints2)
+        finally:
+            self.buffer_boxes.put_nowait(self.tracker.state_boxes)
+            self.buffer_track_ids.put_nowait(self.tracker.state_track_ids)
+            self.buffer_sizes.put_nowait((self.tracker.data.width, self.tracker.data.height))
+            self.buffer_frames.put_nowait(frame)
+            assert hasattr(self.tracker, 'state_is_effective_feature_matching_n_homography')
+
+    def after_track(self):
+        self.tracker.logger.info(f"\n num_keypoints is {self.count_keypoint}")
 
     def remove_out_of_center(self, keypoints, descriptors, original_size):
         ret_keypoints = []
@@ -291,11 +319,14 @@ class FeatureMatcher(HookBase):
         width, height = original_size
         alpha = (1/6,)
         beta = (1/16, 1/8)
-        for cnt, (keypoint, descriptor) in enumerate(zip(keypoints, descriptors)):
-            x, y = keypoint.pt
-            if (x - 1/2 * width) ** 2 / (1/2 * width - beta[0]*width) ** 2 + (y - 1/2 * height) ** 2 / (1/2*height-beta[1]*height) ** 2 <= 1:
-                ret_keypoints.append(keypoint)
-                ret_indxs_of_descriptor = np.append(ret_indxs_of_descriptor, cnt)
+        try:
+            for cnt, (keypoint, descriptor) in enumerate(zip(keypoints, descriptors)):
+                x, y = keypoint.pt
+                if (x - 1/2 * width) ** 2 / (1/2 * width - beta[0]*width) ** 2 + (y - 1/2 * height) ** 2 / (1/2*height-beta[1]*height) ** 2 <= 1:
+                    ret_keypoints.append(keypoint)
+                    ret_indxs_of_descriptor = np.append(ret_indxs_of_descriptor, cnt)
+        except TypeError:
+            pass
         if len(ret_indxs_of_descriptor):
             ret_descriptors = descriptors[ret_indxs_of_descriptor]
         return ret_keypoints, ret_descriptors
@@ -348,15 +379,29 @@ class FeatureMatcher(HookBase):
         width, height = size
         x, y = coordinate
         x1, y1, x2, y2 = bbox
-        if x/width < x1:
-            return False
-        if y/height < y1:
-            return False
-        if x/width > x2:
-            return False
-        if y/height > y2:
-            return False
-        return True
+        if self.box_remove_margin == 0.:
+            if x/width < x1:
+                return False
+            if y/height < y1:
+                return False
+            if x/width > x2:
+                return False
+            if y/height > y2:
+                return False
+            return True
+        else:
+            kdx = (x2 - x1) * self.box_remove_margin
+            kdy = (y2 - y1) * self.box_remove_margin
+            if x/width < x1 - kdx:
+                return False
+            if y/height < y1 - kdy:
+                return False
+            if x/width > x2 + kdx:
+                return False
+            if y/height > y2 + kdy:
+                return False
+            return True
+
 
 class TransformedMidpointCalculator(HookBase):
 
@@ -375,7 +420,7 @@ class TransformedMidpointCalculator(HookBase):
         bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
 
         if hasattr(self.tracker.record, 'good_feature_matches'): # not first loop
-            if True: # TODO: flag meaning effective transform matrix
+            if self.tracker.state_is_effective_feature_matching_n_homography: # TODO: flag meaning effective transform matrix
                 for track_id, quadruples_of_points_for_box in zip(self.tracker.state_previous_track_ids, self.tracker.state_quadruples_of_points_for_boxes):
                     rel_quadruples_of_points_for_box = quadruples_of_points_for_box / 512 # TODO: get size
                     self.buffer_midpoint[track_id] = ((rel_quadruples_of_points_for_box[1][0][0] + rel_quadruples_of_points_for_box[2][0][0]) / 2, (rel_quadruples_of_points_for_box[1][0][1] + rel_quadruples_of_points_for_box[2][0][1]) / 2)
@@ -388,6 +433,57 @@ class TransformedMidpointCalculator(HookBase):
                     self.tracker.state_approaching[cnt] = True
                 else: # not approaching
                     self.tracker.state_approaching[cnt] = False
+            else: # new track
+                self.tracker.state_approaching[cnt] = False
+            self.buffer_midpoint[track_id] = midpoint
+            cnt += 1
+
+class TransformedMidpointDifferencer(HookBase):
+
+    def __init__(self):
+        self.buffer_midpoint = {}
+        self.buffer_down_up_num = defaultdict(lambda: np.full(2, 0, dtype='int32')) # [0]: num of down, [1]: num of up.
+        self.id_sorted_midpoint_of_transformed_boxes = {}
+        self.id_sorted_midpoint_of_previous_boxes = {}
+
+    def before_track(self):
+        self.tracker.state_approaching = []
+
+    def after_step(self):
+        """
+        """
+        self.width = self.tracker.data.width
+        self.height = self.tracker.data.height
+
+        bboxes = BoxMode.convert_boxes(self.tracker.state_boxes, from_mode=BoxMode.XYXY_ABS, to_mode=BoxMode.XYXY_REL, width=self.width, height=self.height)
+
+        if hasattr(self.tracker.record, 'good_feature_matches'): # not first loop
+            if self.tracker.state_is_effective_feature_matching_n_homography: # TODO: flag meaning effective transform matrix
+                for track_id, quadruples_of_points_for_box in zip(self.tracker.state_previous_track_ids, self.tracker.state_quadruples_of_points_for_boxes):
+                    rel_quadruples_of_points_for_box = quadruples_of_points_for_box / 512 # TODO: get size
+                    self.id_sorted_midpoint_of_transformed_boxes[track_id] = ((rel_quadruples_of_points_for_box[1][0][0] + rel_quadruples_of_points_for_box[2][0][0]) / 2, (rel_quadruples_of_points_for_box[1][0][1] + rel_quadruples_of_points_for_box[2][0][1]) / 2)
+                
+        cnt = 0
+        for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
+            midpoint = ((bbox[2]-bbox[0]) / 2, bbox[3])
+            if track_id in self.buffer_midpoint: # existing track
+                if track_id in self.id_sorted_midpoint_of_transformed_boxes: # exists corresponding box transformed
+                    # assert track_id in self.id_sorted_midpoint_of_previous_boxes
+                    if self.id_sorted_midpoint_of_transformed_boxes[track_id][1] - midpoint[1] >= 0.: # move up
+                        self.buffer_down_up_num[track_id][1] += 1
+                        self.tracker.logger.debug(f"\n track id: {track_id} moved up(or 0) {self.id_sorted_midpoint_of_transformed_boxes[track_id][1] - midpoint[1]} compared with transofrmed box, \nand num of (down, up) {self.buffer_down_up_num[track_id]}.")
+                    else: # move down
+                        self.buffer_down_up_num[track_id][0] += 1
+                        self.tracker.logger.debug(f"\n track id: {track_id} moved down {self.id_sorted_midpoint_of_transformed_boxes[track_id][1] - midpoint[1]} compared with transofrmed box, \nand num of (down, up) {self.buffer_down_up_num[track_id]}.")
+                    if self.buffer_down_up_num[track_id][0] > self.buffer_down_up_num[track_id][1] * 2:
+                        self.tracker.state_approaching[cnt] = True
+                    else:
+                        self.tracker.state_approaching[cnt] = False
+                else: # not exists corresponding box transformed
+                    if self.buffer_midpoint[track_id][1] - midpoint[1] < 0: # approaching
+                        self.tracker.state_approaching[cnt] = True
+                    else: # not approaching
+                        self.tracker.state_approaching[cnt] = False
             else: # new track
                 self.tracker.state_approaching[cnt] = False
             self.buffer_midpoint[track_id] = midpoint
@@ -418,10 +514,10 @@ class HorizontalMovementCounter(HookBase):
         for track_id, bbox in zip(self.tracker.state_track_ids, bboxes):
             midpoint = ((bbox[2]-bbox[0]) / 2, bbox[3])
             if track_id in self.buffer_right_move_num: # existing track
-                if self.buffer_midpoint[track_id][0] - midpoint[0] < -0.01: # move right
+                if self.buffer_midpoint[track_id][0] - midpoint[0] < -0.00001: # move right
                     self.buffer_right_move_num[track_id] += 1
                     self.tracker.logger.debug(f"\n track id: {track_id} moved right {self.buffer_midpoint[track_id][0] - midpoint[0]}, and right_move_num {self.buffer_right_move_num[track_id]}.")
-                elif self.buffer_midpoint[track_id][0] - midpoint[0] > 0.01: # move left
+                elif self.buffer_midpoint[track_id][0] - midpoint[0] > 0.00001: # move left
                     self.buffer_right_move_num[track_id] -= 1
                     self.tracker.logger.debug(f"\n track id: {track_id} moved left {self.buffer_midpoint[track_id][0] - midpoint[0]}, and right_move_num {self.buffer_right_move_num[track_id]}.")
                 else: # same horizontal position
@@ -544,6 +640,13 @@ class WidthAndHeihtCalculator(HookBase):
     
 #     def before_track(self):
 
+class RiskyJudger(HookBase):
+
+    def before_track(self):
+        self.tracker.state_risky:bool = None
+    
+    def after_step(self):
+        self.tracker.state_risky = bool(True in self.tracker.state_approaching)
 
 class Recorder(HookBase):
 
@@ -553,9 +656,13 @@ class Recorder(HookBase):
         record.bboxes = self.tracker.state_boxes
         if hasattr(self.tracker, 'state_approaching'):
             record.approaching = self.tracker.state_approaching
+        if hasattr(self.tracker, 'state_risky'):
+            record.risky = self.tracker.state_risky
         if hasattr(self.tracker, 'state_good_feature_matches'):
             record.good_feature_matches = self.tracker.state_good_feature_matches
             record.keypoints_n_descriptors = self.tracker.state_keypoints_n_descriptors
+        if hasattr(self.tracker, 'state_is_effective_feature_matching_n_homography'):
+            record.is_effective_feature_matching_n_homography = self.tracker.state_is_effective_feature_matching_n_homography
         self.tracker.record = record
 
 
@@ -631,7 +738,11 @@ class _VideoWriterBase(HookBase):
 
 class VideoWriterForTracking(_VideoWriterBase):
     def get_frame_n_width_height(self):
-        return self.tracker.record.image_drawn, self.tracker.record.width, self.tracker.record.height
+        try:
+            ret_image = self.tracker.record.image_drawn
+        except AttributeError:
+            ret_image = self.tracker.record.image
+        return ret_image, self.tracker.record.width, self.tracker.record.height
 
 class VideoWriterForApproaching(_VideoWriterBase):
     def __init__(self, *args, **kwargs):
@@ -684,7 +795,7 @@ class VideoWriterForMatching(_VideoWriterBase):
         return img_matches, self.size[0], self.size[1]
         
 
-class MOTWriter(HookBase):
+class _MOTWriter(HookBase):
 
     def __init__(self, root_output_mot: str):
         self.path_to_zip = os.path.join(root_output_mot, 'gt.zip')
@@ -693,8 +804,101 @@ class MOTWriter(HookBase):
         self.lines_as_lists: List[List[Any]] = []
 
     def after_step(self):
+        self.add_to_lines_as_lists()
+
+    def add_to_lines_as_lists(self):
+        return NotImplementedError
+
+    def get_labels(self):
+        return NotImplementedError
+
+    def after_track(self):
+        lines_as_str_list = []
+        for line_as_list in self.lines_as_lists:
+            line_as_str = ','.join([str(_) for _ in line_as_list]) + "\n"
+            lines_as_str_list.append(line_as_str)
+            
+        with open(self.path_to_txt, "wt") as out_mot:
+            for line_as_str in lines_as_str_list:
+                out_mot.write(line_as_str)
+
+        with open(self.path_to_labels, "wt") as out_labels:
+            for label in self.get_labels():
+                out_labels.write(label + "\n")
+
+        with zipfile.ZipFile(self.path_to_zip, 'w', compression=zipfile.ZIP_DEFLATED) as new_zip:
+            new_zip.write(self.path_to_txt, arcname='gt/gt.txt')
+            new_zip.write(self.path_to_labels, arcname='gt/labels.txt')
+
+class MOTWriter(_MOTWriter):
+    def __init__(self, *args, labels:List[str] = ["mirror"], **kwargs):
+        super().__init__(*args, **kwargs)
+        self.labels = labels
+
+    def add_to_lines_as_lists(self):
+        self.after_tracklines_as_lists = []
         for track_id, bbox in zip(self.tracker.record.track_ids, self.tracker.record.bboxes):
             line_as_list = [self.tracker.iter, track_id, bbox[0] + 1, bbox[1] + 1, bbox[2] - bbox[0], bbox[3] - bbox[1], 1.0, 1, 1.0]
+            self.lines_as_lists.append(line_as_list)
+
+    def get_labels(self):
+        return self.labels
+
+
+class MOTWriterForApproaching(_MOTWriter):
+    """
+    NOTE: 1 is not approaching
+    class num 1: not_approaching
+    class num 2: approaching
+    track id is always -1
+    """
+    def add_to_lines_as_lists(self):
+        for track_id, bbox, approaching in zip(self.tracker.record.track_ids, self.tracker.record.bboxes, self.tracker.record.approaching):
+            line_as_list = [self.tracker.iter, track_id, bbox[0] + 1, bbox[1] + 1, bbox[2] - bbox[0], bbox[3] - bbox[1], 1.0, 2 if approaching else 1, 1.0]
+            self.lines_as_lists.append(line_as_list)
+
+    def get_labels(self):
+        return ["not_approaching", "approaching"]
+
+
+class MOTWriterForRisky(_MOTWriter):
+    """
+    NOTE: 1 is not risky
+    class num 1: not_risky
+    class num 2: risky
+    track id is always -1
+    """
+
+    def add_to_lines_as_lists(self):
+        line_as_list = [self.tracker.iter, -1, 1, 1, self.tracker.record.width, self.tracker.record.height, 1.0, 2 if self.tracker.record.risky else 1, 1.0]
+        self.lines_as_lists.append(line_as_list)
+
+    def get_labels(self):
+        return ["not_risky", "risky"]
+
+
+class FeatureStatWriter(HookBase):
+    """
+    format:
+        [iter_num, is_risky, num_previous_keypoints, num_current_keypoints, is_homograpy_found]
+        [int, int(1-2), int(0-), int(0-), int(0-), int(0-1) ]
+
+        1: not_risky
+        2: risky
+    """
+
+    def __init__(self, root_output_feature_stat: str):
+        self.path_to_txt = os.path.join(root_output_feature_stat, 'feature_stat.txt')
+        self.lines_as_lists: List[List[Any]] = []
+
+    def after_step(self):
+        self.add_to_lines_as_lists()
+
+    def add_to_lines_as_lists(self):
+        if hasattr(self.tracker.record, 'good_feature_matches'): # not first loops
+            num_previous_keypoints = len(self.tracker.record.keypoints_n_descriptors[0][0])
+            num_current_keypoints = len(self.tracker.record.keypoints_n_descriptors[1][0])
+            line_as_list = [self.tracker.iter, 2 if self.tracker.record.risky else 1, num_previous_keypoints, num_current_keypoints, int(self.tracker.record.is_effective_feature_matching_n_homography)]
             self.lines_as_lists.append(line_as_list)
 
     def after_track(self):
@@ -702,13 +906,7 @@ class MOTWriter(HookBase):
         for line_as_list in self.lines_as_lists:
             line_as_str = ','.join([str(_) for _ in line_as_list]) + "\n"
             lines_as_str_list.append(line_as_str)
+            
         with open(self.path_to_txt, "wt") as out_mot:
             for line_as_str in lines_as_str_list:
                 out_mot.write(line_as_str)
-
-        with open(self.path_to_labels, "wt") as out_labels:
-            out_labels.write("mirror")
-
-        with zipfile.ZipFile(self.path_to_zip, 'w', compression=zipfile.ZIP_DEFLATED) as new_zip:
-            new_zip.write(self.path_to_txt, arcname='gt/gt.txt')
-            new_zip.write(self.path_to_labels, arcname='gt/labels.txt')

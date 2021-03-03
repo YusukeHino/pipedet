@@ -28,13 +28,14 @@ class Dataset:
     """
     """
 
-    def __init__(self, input_data_root: str) -> None :
+    def __init__(self, input_data_root: str, tag_to_use: List[str]=["train", "validate", "test"]) -> None :
         """
         Args:
             input_data_root (str): e.g. "/home/appuser/data"
         """
         self._input_data_root = input_data_root
         self.images: List[Union[Image, LargeImage]] = []
+        self.tag_to_use = tag_to_use
     
     def __iter__(self):
         return iter(self.images)
@@ -56,6 +57,9 @@ class Dataset:
         for tag_image in root.findall('image'):
             # rel_path is "for_rsm_detection/separated/4104_3006_for_test/20181205_007_0000004.png"
             rel_path = tag_image.attrib['name']
+            dir_name = os.path.dirname(rel_path)
+            if not dir_name.endswith(tuple(self.tag_to_use)) :
+                continue
             width = int(tag_image.attrib['width'])
             height = int(tag_image.attrib['height'])
             bboxes = []

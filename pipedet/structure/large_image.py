@@ -155,10 +155,10 @@ class BoxMode(IntEnum):
             arr[3] = int(box[3]*height)
         elif from_mode == BoxMode.YXYX_REL and to_mode == BoxMode.XYXY_ABS:
             assert not width is None and not height is None, "If you convert over REL<->ABS, you need width and height"
-            arr[0] = int(box[1]*height)
-            arr[1] = int(box[0]*width)
-            arr[2] = int(box[3]*height)
-            arr[3] = int(box[2]*width)
+            arr[0] = int(box[1]*width)
+            arr[1] = int(box[0]*height)
+            arr[2] = int(box[3]*width)
+            arr[3] = int(box[2]*height)
         elif from_mode == BoxMode.YXYX_ABS and to_mode == BoxMode.XYXY_ABS:
             arr[0] = int(box[1])
             arr[1] = int(box[0])
@@ -333,6 +333,8 @@ class Image():
             self.container_predict() # TODO: set config flow
         elif server == "EFFICIENTDET":
             self.client_efficientdet()
+        elif server == "FASTER-RCNN":
+            self.client_faster_rcnn()
         else:
             raise NotImplementedError
 
@@ -378,6 +380,32 @@ class Image():
         self.class_ids = content['predictions'][0]['class_ids']
         assert not self.bboxes, "Imgae object has some bbox attribute, so ObjDet has been canceled."
         self.bboxes = BoxMode.convert_boxes(pre_convert_bboxes, from_mode=BoxMode.YXYX_ABS, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
+
+    def client_faster_rcnn(self):
+        resized_image = cv2.resize(self.image, (1024, 1024))
+        encoded_image = cv2_to_base64_string(resized_image)
+        instances = {
+                'instances': [
+                        {'image_bytes': {'b64': encoded_image},
+                        'key': 'any'}
+                ]
+        }
+        port_number=8501
+        url = f'http://odapi:{port_number}'
+        response = requests.post(url, data=json.dumps(instances))
+        try:
+            response.raise_for_status()
+        except:
+            print(response.content)
+        content = response.json()
+
+        pre_convert_bboxes = content['predictions'][0]['detection_boxes'] #List[List] rel, y1 x1 y2 x2
+        self.class_confidences = [(0, x) for x in content['predictions'][0]['class_confidences']]
+        self.class_ids = []
+        self.class_ids = content['predictions'][0]['class_ids']
+        assert not self.bboxes, "Imgae object has some bbox attribute, so ObjDet has been canceled."
+        self.bboxes = BoxMode.convert_boxes(pre_convert_bboxes, from_mode=BoxMode.YXYX_REL, to_mode=BoxMode.XYXY_ABS, width=self.width, height=self.height)
+        breakpoints = []
 
     # def tf_serving(self):
     #     tmp_image = self.image.copy()
